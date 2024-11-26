@@ -1,10 +1,11 @@
 import numpy as np
 import random
 from tqdm import tqdm
+from copy import deepcopy
 
-from src import enrich
-from src import genesig
-from src import sigtest
+import enrich
+import genesig
+import sigtest
 
 class GREA(object):
 
@@ -29,25 +30,26 @@ class GREA(object):
                 print('Low numer of permutations can lead to inaccurate p-value estimation. Consider increasing number of permutations.')
             symmetric = True
     
-    def fit(self, signature, library, 
+    def fit(self, sig_name, sig_val, library, method='KS',
+            sig_type='ss', sample_type='ss', sig_sep=',',
+            n_perm=1000,
             add_noise=False, center=True,
             verbose: bool=False,
             min_size: int=5, max_size: int=4000,
             accuracy: int=40, deep_accuracy: int=50, # ???
             ):
-        sig_hash = hash(signature.to_string()) # ???
-        signature, abs_signature = genesig.process_signature(signature, center=center, add_noise=add_noise)
         
-        sig2i = {}
-        i2sig = {}
-        for i, s in enumerate(signature.index):
-            sig2i[s] = i
-            i2sig[i] = s    
+        sig_name = deepcopy(sig_name)
+        sig_val = deepcopy(sig_val)
+        # sig_name: array (n_sig x n_sample), the name of signature
+        # sig_val: array (n_sig x n_sample), the value of signature, used for ranking the sig_name
 
+        sig_val = genesig.process_signature(sig_val, center=center, add_noise=add_noise)
         res = sigtest.sig_enrich(
-            signature, abs_signature, sig2i, i2sig, library, 
-            seed = self.seed, processes=self.processes,
-            verbose=verbose, min_size=min_size, max_size=max_size,
-            accuracy=accuracy, deep_accuracy=deep_accuracy, # ???
-            )
+                sig_name, sig_val, library, sig_sep=sig_sep,
+                method=method, n_perm=n_perm,
+                seed = self.seed, processes=self.processes,
+                verbose=verbose, min_size=min_size, max_size=max_size,
+                accuracy=accuracy, deep_accuracy=deep_accuracy, # ???
+        )
         return res

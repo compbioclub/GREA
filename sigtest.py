@@ -12,7 +12,8 @@ from matplotlib import pyplot as plt
 from mpmath import mp, mpf
 from statsmodels.stats.multitest import multipletests
 
-from src import enrich
+
+import enrich
 
 
 from mpmath import mp, exp, log
@@ -255,7 +256,7 @@ def pred_gamma_prob(es, hit_n, Gamma_paras,
     mp.prec = accuracy
     return nes, pval
 
-def sig_enrich(signature, abs_signature, sig2i, i2sig, library, 
+def sig_enrich_old(signature, abs_signature, sig2i, i2sig, library, 
                seed: int=1, processes: int=4,
                verbose: bool=False, plot: bool=False,
                min_size: int=5, max_size: int=4000,
@@ -329,3 +330,239 @@ def sig_enrich(signature, abs_signature, sig2i, i2sig, library,
     res = res.set_index("Term")
 
     return res.sort_values("es_pval", key=abs, ascending=True)
+
+def sig_enrich_list(signature, abs_signature, sig2i, i2sig, library, 
+               seed: int=1, processes: int=4,
+               verbose: bool=False, plot: bool=False,
+               min_size: int=5, max_size: int=4000,
+               accuracy: int=40, deep_accuracy: int=50, # ???
+               ):
+
+    sig_genes = set(signature.index)
+
+    keys, hit_ns, gene_ns = [], [], []
+    es_list, esd_list = [], []
+    es_pval_list, esd_pval_list = [], []
+    nes_list, nesd_list = [], []
+    le_ns, le_gene_list = [], []
+   
+    for k in tqdm(list(library.keys()), desc="Enrichment ", disable=not verbose):
+        genes = library[k]
+
+        overlap_ratios = []
+        hit_n = 0
+        for sig_gene in sig_genes:
+            sig_gene_list = sig_gene.split(',')
+            n = len(set(genes).intersection(sig_gene_list))
+            overlap_ratios.append(n/len(sig_gene))
+            if n > 0:
+                hit_n += 1
+        overlap_ratios = np.array(overlap_ratios)
+
+        gene_n = len(genes)
+        if hit_n >= min_size and hit_n <= max_size:
+            keys.append(k)
+            hit_ns.append(hit_n)
+            gene_ns.append(gene_n)
+            rs, es, esd, peak, le_genes = enrich.get_SE(abs_signature, i2sig, overlap_ratios)
+            nes, es_pval = 0, 0 #pred_gamma_prob(es, hit_n, es_gamma_paras, accuracy, deep_accuracy)
+            nesd, esd_pval = 0, 0 #pred_gamma_prob(esd, hit_n, esd_gamma_paras, accuracy, deep_accuracy)
+
+            es_list.append(float(es))
+            esd_list.append(float(esd))
+            nes_list.append(-float(nes))
+            nesd_list.append(-float(nesd))
+            es_pval_list.append(float(es_pval))
+            esd_pval_list.append(float(esd_pval))
+            le_ns.append(len(le_genes))
+            le_gene_list.append(','.join(le_genes))
+
+    if not verbose:
+        np.seterr(divide = 'ignore')
+    
+    if len(es_pval_list) > 1:
+        es_fdr_values = multipletests(es_pval_list, method="fdr_bh")[1]
+        es_sidak_values = multipletests(es_pval_list, method="sidak")[1]
+        esd_fdr_values = multipletests(esd_pval_list, method="fdr_bh")[1]
+        esd_sidak_values = multipletests(esd_pval_list, method="sidak")[1]
+    else:
+        es_fdr_values = es_pval_list
+        es_sidak_values = es_pval_list
+        esd_fdr_values = esd_pval_list
+        esd_sidak_values = esd_pval_list
+
+
+    res = pd.DataFrame([
+        keys, 
+        np.array(es_list), np.array(nes_list), np.array(es_pval_list), np.array(es_sidak_values), np.array(es_fdr_values),
+        np.array(esd_list), np.array(nesd_list), np.array(esd_pval_list), np.array(esd_sidak_values), np.array(esd_fdr_values), 
+        np.array(gene_ns), np.array(hit_ns), np.array(le_ns), np.array(le_gene_list)
+        ]).T
+    stats = ["es", "nes", "es_pval", "es_sidak", "es_fdr",
+             "esd", "nesd", "esd_pval", "esd_sidak", "esd_fdr"]
+    res.columns = ["Term"] + stats + \
+        ["gene_n", "hit_n", "leading_edge_n", "leading_edge"]
+    res["Term"] = res['Term'].astype("str")
+    for col in stats:
+        res[col] = res[col].astype("float")
+    res["gene_n"] = res['gene_n'].astype("int")
+    res["hit_n"] = res['hit_n'].astype("int")
+    res["leading_edge_n"] = res['leading_edge_n'].astype("int")
+    res["leading_edge"] = res['leading_edge'].astype("str")
+    res = res.set_index("Term")
+
+    return res.sort_values("es_pval", key=abs, ascending=True)
+
+def sig_enrich_ss_list(signature, abs_signature, sig2i, i2sig, library, 
+               seed: int=1, processes: int=4,
+               verbose: bool=False, plot: bool=False,
+               min_size: int=5, max_size: int=4000,
+               accuracy: int=40, deep_accuracy: int=50, # ???
+               ):
+
+    sig_genes = set(signature.index)
+
+    df_list = []
+    for k in tqdm(list(library.keys()), desc="Enrichment ", disable=not verbose):
+        genes = library[k]
+        overlap_ratios = []
+        hit_n = 0
+        for sig_gene in sig_genes:
+            sig_gene_list = sig_gene.split(',')
+            n = len(set(genes).intersection(sig_gene_list))
+            overlap_ratios.append(n/len(sig_gene))
+            if n > 0:
+                hit_n += 1
+        overlap_ratios = np.array(overlap_ratios)
+        n_sample = signature.shape[1]
+
+        gene_n = len(genes)
+        if hit_n >= min_size and hit_n <= max_size:
+            rs, es, esd, peak, le_genes = enrich.get_SE(signature, i2sig, overlap_ratios)
+            nes, es_pval = [0]*n_sample, [0]*n_sample #pred_gamma_prob(es, hit_n, es_gamma_paras, accuracy, deep_accuracy)
+            nesd, esd_pval = [0]*n_sample, [0]*n_sample #pred_gamma_prob(esd, hit_n, esd_gamma_paras, accuracy, deep_accuracy)
+
+            le_ns = len(le_genes)
+            le_gene_str = ','.join(le_genes)
+
+            if len(es_pval) > 1:  # may need to apply
+                es_fdr_values = multipletests(es_pval, method="fdr_bh")[1]
+                es_sidak_values = multipletests(es_pval, method="sidak")[1]
+                esd_fdr_values = multipletests(esd_pval, method="fdr_bh")[1]
+                esd_sidak_values = multipletests(esd_pval, method="sidak")[1]
+            else:
+                es_fdr_values = es_pval
+                es_sidak_values = es_pval
+                esd_fdr_values = esd_pval
+                esd_sidak_values = esd_pval
+
+            res = pd.DataFrame({
+                "Sample": signature.columns,
+                "Term": [k]*n_sample,
+                "es": es, "nes": nes, "es_pval": es_pval, 
+                "es_sidak": es_sidak_values, "es_fdr": es_fdr_values,
+                "esd": esd, "nesd": nesd, "esd_pval": esd_pval, 
+                "esd_sidak": esd_sidak_values, "esd_fdr": esd_fdr_values,
+                'gene_n': [gene_n]*n_sample, 'hit_n': [hit_n]*n_sample, 
+                "leading_edge_n": [le_ns]*n_sample, 
+                "leading_edge": [le_gene_str]*n_sample
+            })
+            df_list.append(res)
+
+    if not verbose:
+        np.seterr(divide = 'ignore')
+    
+    df = pd.concat(df_list)
+    df = df.sort_values("es", key=abs, ascending=True)
+    return df
+
+def sig_enrich(sig_name, sig_val, library, 
+               sig_sep=',', method='KS', n_perm=1000,
+               seed: int=1, processes: int=4,
+               verbose: bool=False, plot: bool=False,
+               min_size: int=5, max_size: int=4000,
+               accuracy: int=40, deep_accuracy: int=50, # ???
+               ):
+
+    n_sample = sig_val.shape[1]
+
+    df_list = []
+    for lib_key in tqdm(list(library.keys()), desc="Enrichment ", disable=not verbose):
+        
+        lib_sigs = library[lib_key]
+        n_lib_sig = len(lib_sigs)
+
+        overlap_ratios, n_hits = enrich.get_overlap(sig_name, lib_sigs, sig_sep)
+        obs_rs, null_rs = enrich.get_running_sum(sig_val, overlap_ratios, method=method, n_perm=n_perm)
+        res = pd.DataFrame({
+            "Sample": range(n_sample),
+            "Term": [lib_key]*n_sample,
+            'n_gene': [n_lib_sig]*n_sample, 
+            'n_hit': n_hits, 
+        }) 
+        
+        if method == 'KS':
+            KS_res = sig_enrich_KS(obs_rs, null_rs)
+            res = pd.concat([res, KS_res], axis=1)
+        if method == 'RC':
+            RC_res = sig_enrich_RC(obs_rs, null_rs)
+            res = pd.concat([res, RC_res], axis=1)      
+        df_list.append(res)
+
+    if not verbose:
+        np.seterr(divide = 'ignore')
+    
+    df = pd.concat(df_list)
+    return df
+
+def sig_enrich_KS(obs_rs, null_rs):
+    n_sample = obs_rs.shape[1]
+    es, esd, peak = enrich.get_ES_ESD(obs_rs)
+    le_genes = []
+    null_es, null_esd, null_peak = enrich.get_ES_ESD_null(null_rs)
+    print(es.shape, null_es.shape)
+
+    nes, es_pval = [0]*n_sample, [0]*n_sample #pred_gamma_prob(es, hit_n, es_gamma_paras, accuracy, deep_accuracy)
+    nesd, esd_pval = [0]*n_sample, [0]*n_sample #pred_gamma_prob(esd, hit_n, esd_gamma_paras, accuracy, deep_accuracy)
+
+    le_ns = len(le_genes)
+    le_gene_str = ','.join(le_genes)
+
+    if len(es_pval) > 1:  # may need to apply
+        es_fdr_values = multipletests(es_pval, method="fdr_bh")[1]
+        es_sidak_values = multipletests(es_pval, method="sidak")[1]
+        esd_fdr_values = multipletests(esd_pval, method="fdr_bh")[1]
+        esd_sidak_values = multipletests(esd_pval, method="sidak")[1]
+    else:
+        es_fdr_values = es_pval
+        es_sidak_values = es_pval
+        esd_fdr_values = esd_pval
+        esd_sidak_values = esd_pval
+
+    res = pd.DataFrame({
+        "es": es, "nes": nes, "es_pval": es_pval, 
+        "es_sidak": es_sidak_values, "es_fdr": es_fdr_values,
+        "esd": esd, "nesd": nesd, "esd_pval": esd_pval, 
+        "esd_sidak": esd_sidak_values, "esd_fdr": esd_fdr_values,
+        "leading_edge_n": [le_ns]*n_sample, 
+        "leading_edge": [le_gene_str]*n_sample
+    })
+    return res
+
+def sig_enrich_RC(obs_rs, null_rs):
+    n_sample = obs_rs.shape[1]
+    AUCs = enrich.get_AUC(obs_rs)
+    AUC_pval = [0]*n_sample
+
+    if len(AUC_pval) > 1:  # may need to apply
+        AUC_fdr_values = multipletests(AUC_pval, method="fdr_bh")[1]
+        AUC_sidak_values = multipletests(AUC_pval, method="sidak")[1]
+    else:
+        AUC_fdr_values = AUC_pval
+        AUC_sidak_values = AUC_pval
+
+    res = pd.DataFrame({
+        "AUC": AUCs, "AUC_pval": AUC_pval, 
+        "AUC_sidak": AUC_sidak_values, "AUC_fdr": AUC_fdr_values,
+    })
+    return res
