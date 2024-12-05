@@ -78,12 +78,6 @@ def get_running_sum_aux(sorted_abs, overlap_ratios, sort_indices, method='KS'):
 
     return running_sum
 
-def get_SE(running_sum):
-    ES, ESD, peak = get_ES_ESD(running_sum)
-    le_genes = [] # get_leading_edge(i2sig, hit_indicator, ES, peak)
-
-    return ES, ESD, peak, le_genes
-
 def get_AUC(obs_rs):
     # running_sum  n_sig x n_sample
     n_sig = obs_rs.shape[0]
@@ -103,67 +97,6 @@ def get_AUC_null(null_rs):
     n_sig = null_rs.shape[1]  # Number of signals
     AUCs = (null_rs * (1 / n_sig)).sum(axis=1)  # Sum along the n_sig axis
     return AUCs
-
-def get_SE_old(signature, i2sig, overlap_ratios):
-    # abs_signature, n_sig x n_sample
-    # sig2i: signature name to index
-    # gene_set: target genes in a particular gene set
-    #print(gene_set)
-    #
-
-    hit_indicator = (overlap_ratios > 0).astype(int)
-    miss_indicator = 1 - hit_indicator
-    number_hit_is = hit_indicator.sum()
-    number_miss = len(signature) - number_hit_is
-    #print(signature.shape, overlap_ratios.shape)
-
-    sort_indices = np.argsort(signature, axis=0)[::-1, :]
-
-    sorted_sig = np.take_along_axis(signature.values, sort_indices, axis=0)
-    sorted_abs = np.abs(sorted_sig)
-    sorted_or = np.take_along_axis(overlap_ratios[:, np.newaxis], sort_indices, axis=0)
-    sum_hit_scores = np.sum(sorted_abs * sorted_or, axis=0)
-    norm_hit = 1.0/sum_hit_scores.astype(float)
-    norm_miss = float(1.0/number_miss)
-    sorted_miss = np.take_along_axis(miss_indicator[:, np.newaxis], sort_indices, axis=0)
-    #print(sorted_miss.shape)
-    #print(sorted_or.shape, sorted_abs.shape, norm_hit[np.newaxis, :].shape)
-    #print((sorted_or * sorted_abs * norm_hit[np.newaxis, :]).max())
-    #print( (sorted_miss * norm_miss).shape)
-    score = sorted_or * sorted_abs * norm_hit[np.newaxis, :] - sorted_miss * norm_miss
-    running_sum = np.cumsum(score, axis=0)
-    #print('--', running_sum)
-    # running_sum  n_gene x n_sample
-
-    ES, ESD, peak = get_ES_ESD(running_sum)
-    le_genes = [] # get_leading_edge(i2sig, hit_indicator, ES, peak)
-
-    return running_sum, ES, ESD, peak, le_genes
-
-def get_ESs_null(abs_signature, number_hits, perm_n, seed): # ???
-    random.seed(seed)
-    es = []
-    esd = []
-    hit_indicator = np.zeros(len(abs_signature))
-    hit_indicator[0:number_hits] = 1
-    for i in range(perm_n):
-        running_sum, ES, ESD, peak = get_ES_null(abs_signature, hit_indicator)
-        es.append(ES)
-        esd.append(ESD)
-    return np.array(es), np.array(esd)
-
-
-def get_ES_null(abs_signature, hit_indicator):
-    np.random.shuffle(hit_indicator)
-    hit_is = np.where(hit_indicator == 1)[0]
-    number_hit_is = len(hit_is)
-    number_miss = len(abs_signature) - number_hit_is
-    sum_hit_scores = np.sum(abs_signature[hit_is])
-    norm_hit = 1.0/sum_hit_scores
-    norm_miss = 1.0/number_miss
-    running_sum = np.cumsum(hit_indicator * abs_signature * norm_hit - (1 - hit_indicator) * norm_miss)
-    ES, ESD, peak = get_ES_ESD(running_sum)
-    return running_sum, ES, ESD, peak
 
 
 def get_ES_ESD(obs_rs):
@@ -200,18 +133,4 @@ def get_ES_ESD_null(null_rs):
     max_negative = np.min(np.where(null_rs < 0, null_rs, 0), axis=1)
     # Calculate the enrichment score difference (ESD) for each n_perm and n_sample
     ESD = max_positive + max_negative
-    return ES, ESD, peak
-
-
-def get_ES_ESD_(running_sum):
-    # Find the maximum value (enrichment score, ES) and its index ES_peak
-    peak = np.argmax(np.abs(running_sum))
-    ES = running_sum[peak]
-    # Find the maximum positive value and its index
-    max_positive = running_sum[running_sum > 0].max(initial=0)  # Max positive value (or 0 if none)
-    # Find the maximum negative value and its index
-    max_negative = running_sum[running_sum < 0].min(initial=0)  # Max negative (or 0 if none)
-    # Calculate the enrichment score difference (ES) and its index ESD_peak
-    ESD = max_positive + max_negative
-
     return ES, ESD, peak
