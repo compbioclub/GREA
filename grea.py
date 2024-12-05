@@ -31,7 +31,7 @@ class GREA(object):
             symmetric = True
     
     def fit(self, sig_name, sig_val, library, method='KS',
-            sig_type='ss', sample_type='ss', sig_sep=',',
+            prob_method='perm', sig_sep=';',
             n_perm=1000,
             add_noise=False, center=True,
             verbose: bool=False,
@@ -47,7 +47,7 @@ class GREA(object):
         sig_val = genesig.process_signature(sig_val, center=center, add_noise=add_noise)
         res = sigtest.sig_enrich(
                 sig_name, sig_val, library, sig_sep=sig_sep,
-                method=method, n_perm=n_perm,
+                method=method, n_perm=n_perm, prob_method=prob_method,
                 seed = self.seed, processes=self.processes,
                 verbose=verbose, min_size=min_size, max_size=max_size,
                 accuracy=accuracy, deep_accuracy=deep_accuracy, # ???
