@@ -14,7 +14,9 @@ def get_overlap(sig_name, lib_sigs, sig_sep):
     n_hits = np.zeros(n_sample)
     for j in range(n_sample):
         for i in range(sig_name.shape[0]):
-            sig_names = sig_name[i, j].split(sig_sep)
+            sig_names = set(sig_name[i, j].split(sig_sep))
+            # if i < 10 and j == 0:
+            #     print(f"Row {i}, Col {j}, original: {sig_name[i, j]}, split into: {sig_names}")
             n = len(set(lib_sigs).intersection(sig_names))
             overlap_ratios[i, j] = n/len(sig_names)
             if n > 0:
@@ -25,7 +27,7 @@ def get_overlap(sig_name, lib_sigs, sig_sep):
 def get_running_sum(sig_val, overlap_ratios, method='KS', n_perm=1000):
     sort_indices = np.argsort(sig_val, axis=0)[::-1, :]
     sorted_sig = np.take_along_axis(sig_val, sort_indices, axis=0)
-    sorted_abs = np.abs(sorted_sig)    
+    sorted_abs = np.abs(sorted_sig)   
     obs_rs = get_running_sum_aux(sorted_abs, overlap_ratios, sort_indices, method=method)
 
     null_rs = np.zeros((n_perm, *sig_val.shape))  
@@ -46,6 +48,7 @@ def get_running_sum_null(sorted_abs, overlap_ratios, sort_indices, method='KS'):
 def get_running_sum_aux(sorted_abs, overlap_ratios, sort_indices, method='KS'):
     # sig_val, n_sig x n_sample
     # overlap_ratios, n_sig x n_sample
+    
     n_sig = overlap_ratios.shape[0]
     hit_indicator = (overlap_ratios > 0).astype(int)
     miss_indicator = 1 - hit_indicator
@@ -54,34 +57,60 @@ def get_running_sum_aux(sorted_abs, overlap_ratios, sort_indices, method='KS'):
     number_miss = n_sig - number_hit
     #print(signature.shape, overlap_ratios.shape)
 
-
-    if n_sig == 1:
-        sorted_or = np.take_along_axis(overlap_ratios[:, np.newaxis], sort_indices, axis=0)
-    else:
-        sorted_or = np.take_along_axis(overlap_ratios, sort_indices, axis=0)
-
+    sorted_or = np.take_along_axis(overlap_ratios, sort_indices, axis=0)
     sum_hit_scores = np.sum(sorted_abs * sorted_or, axis=0)
-    norm_hit = 1.0/sum_hit_scores.astype(float)
+    sum_hit_scores[sum_hit_scores == 0] = np.finfo(float).eps
+    norm_hit = 1.0 / sum_hit_scores.astype(float)
 
     if method == 'KS':
-        norm_miss = 1.0/number_miss
-        if n_sig == 1:
-            sorted_miss = np.take_along_axis(miss_indicator[:, np.newaxis], sort_indices, axis=0)
-        else:
-            sorted_miss = np.take_along_axis(miss_indicator, sort_indices, axis=0)
-
+        norm_miss = 1.0 / number_miss
+        sorted_miss = np.take_along_axis(miss_indicator, sort_indices, axis=0)
         score = sorted_or * sorted_abs * norm_hit[np.newaxis, :] - sorted_miss * norm_miss
-    else: # RC - recovery curve
+    else:  # RC - recovery curve
         score = sorted_or * sorted_abs * norm_hit[np.newaxis, :]
+
     running_sum = np.cumsum(score, axis=0)
+    return running_sum
+
+
+    # if n_sig == 1:
+    #     sorted_or = np.take_along_axis(overlap_ratios[:, np.newaxis], sort_indices, axis=0)
+    # else:
+    #     sorted_or = np.take_along_axis(overlap_ratios, sort_indices, axis=0)
+
+    # sum_hit_scores = np.sum(sorted_abs * sorted_or, axis=0)
+    # norm_hit = 1.0/sum_hit_scores.astype(float)
+
+    # if method == 'KS':
+    #     norm_miss = 1.0/number_miss
+    #     if n_sig == 1:
+    #         sorted_miss = np.take_along_axis(miss_indicator[:, np.newaxis], sort_indices, axis=0)
+    #     else:
+    #         sorted_miss = np.take_along_axis(miss_indicator, sort_indices, axis=0)
+
+    #     score = sorted_or * sorted_abs * norm_hit[np.newaxis, :] - sorted_miss * norm_miss
+    # else: # RC - recovery curve
+    #     score = sorted_or * sorted_abs * norm_hit[np.newaxis, :]
+    # running_sum = np.cumsum(score, axis=0)
     # running_sum  n_sig x n_sample
 
-    return running_sum
+    # return running_sum
 
 def get_AUC(obs_rs):
     # running_sum  n_sig x n_sample
-    n_sig = obs_rs.shape[0]
-    AUCs = (obs_rs * 1/n_sig).sum(axis=0)
+    n_sig, n_sample = obs_rs.shape
+    AUCs = np.zeros(n_sample)
+    
+    for i in range(n_sample):
+        data = obs_rs[:, i]
+        valid_mask = ~np.isnan(data)
+        
+        if np.any(valid_mask):
+            clean_data = data[valid_mask]
+            AUCs[i] = (clean_data * (1.0 / n_sig)).sum()
+        else:
+            AUCs[i] = np.nan
+            
     return AUCs
 
 def get_AUC_null(null_rs):
@@ -94,8 +123,25 @@ def get_AUC_null(null_rs):
     Returns:
         AUCs (np.ndarray): Array of size (n_perm, n_sample) with the computed AUCs.
     """
-    n_sig = null_rs.shape[1]  # Number of signals
-    AUCs = (null_rs * (1 / n_sig)).sum(axis=1)  # Sum along the n_sig axis
+    n_perm, n_sig, n_sample = null_rs.shape
+    
+    # 对每个样本分别计算AUC
+    AUCs = np.zeros((n_perm, n_sample))
+    
+    for i in range(n_sample):
+        # 获取当前样本的数据
+        sample_data = null_rs[:, :, i]  # shape: (n_perm, n_sig)
+        
+        # 移除包含NaN的行
+        valid_mask = ~np.isnan(sample_data).any(axis=1)
+        clean_data = sample_data[valid_mask, :]
+        
+        if clean_data.shape[0] > 0:  # 确保有有效数据
+            # 计算AUC
+            AUCs[valid_mask, i] = (clean_data * (1.0 / n_sig)).sum(axis=1)
+        else:
+            AUCs[:, i] = np.nan
+    
     return AUCs
 
 
@@ -109,6 +155,11 @@ def get_ES_ESD(obs_rs):
     max_negative = np.min(np.where(obs_rs < 0, obs_rs, 0), axis=0)
     # Calculate the enrichment score difference (ESD) for each column
     ESD = max_positive + max_negative
+    # # If there's only one sample, return scalars instead of arrays
+    # if ES.size == 1:
+    #     ES = ES[0]
+    #     ESD = ESD[0]
+    #     peak = peak[0]
     return ES, ESD, peak
 
 

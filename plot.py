@@ -72,7 +72,7 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         if len(lib_sigs) == 0:
             raise ValueError(f"The geneset '{geneset}' is not found in the provided library.")
         
-        overlap_ratios, *_ = enrich.get_overlap(sig_name_i[:, np.newaxis],lib_sigs, sig_sep)
+        overlap_ratios, hit_n = enrich.get_overlap(sig_name_i[:, np.newaxis],lib_sigs, sig_sep)
         if overlap_ratios.ndim == 1:
             overlap_ratios = overlap_ratios[:, np.newaxis]
 
@@ -114,7 +114,7 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
                 #print(result.loc[geneset, "nes"])
                 if isinstance(nes, pd.Series):
                     nes = nes.iloc[0]
-                    print(nes)
+                    #print(nes)
                 label_text = f"NES={nes:.3f}"
                 va = 'bottom' if nes > 0 else 'top'
             else:
@@ -133,8 +133,8 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
                 label_text = f"ESD={esd_value:.3f}"
                 va = 'bottom' if esd_value > 0 else 'top'
         elif plot_type == "AUC":
-            if result is not None and geneset in result.index and "auc" in result.columns:
-                auc = result.loc[geneset, "auc"]
+            if result is not None and geneset in result.index and "AUC" in result.columns:
+                auc = result.loc[geneset, "AUC"]
                 if isinstance(auc, pd.Series):
                     auc = auc.iloc[0]
                 label_text = f"AUC={auc:.3f}"
@@ -160,7 +160,7 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
 
         ax1.grid(True, which='both')
         ax1.set(xticks=[])
-        plt.title(f"{geneset} - {plot_type}(Sample{i+1})", fontsize=18)
+        plt.title(f"{geneset} - {plot_type}(Celltype{i+1})", fontsize=18)
         plt.ylabel("Enrichment Score (ES)" if plot_type == "ES" else 
                 "Enrichment Score Derivative (ESD)" if plot_type == "ESD" else 
                 "Area Under Curve (AUC)", fontsize=24 if compact else 16)
@@ -169,10 +169,10 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         if compact:
             ax2 = fig.add_subplot(gs[4:5, 0:11])
             hit_positions = np.where(overlap_ratios[:, 0] > 0)[0]
-            print(hit_positions)
+            #print(hit_positions)
             for pos in hit_positions:
                 ratio_val = overlap_ratios[pos, 0]
-                print(pos, ratio_val)
+                #print(pos, ratio_val)
                 color = cm(norm(ratio_val))
                 ax2.vlines(x=pos, ymin=0, ymax=1, color=color, lw=1.5)
             ax2.set_xlim([0, len(obs_rs)])
@@ -254,8 +254,6 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         sm.set_array([])
         cbar = plt.colorbar(sm, ax=fig.axes, orientation='vertical', fraction=0.05, pad=0.1)
         cbar.set_label("Overlap Ratio", fontsize=16)
-        if not interactive_plot:
-            plt.ion()
         fig.patch.set_facecolor('white')
         figures.append(fig)
 
@@ -334,7 +332,7 @@ def top_table(sig_name, sig_val, library, result, n=10, center=True, interactive
             elif plot_type == 'ESD':
                 value = sample_result.iloc[i]["nesd"]
             elif plot_type == 'AUC':
-                value = sample_result.iloc[i]["auc"]
+                value = sample_result.iloc[i]["AUC"]
 
         
             ax.text(0.03, (ln[i]+ln[i+1])/2, "{:.3f}".format(value), verticalalignment='center')
@@ -356,14 +354,12 @@ def top_table(sig_name, sig_val, library, result, n=10, center=True, interactive
                 else:
                     ax.vlines(hits, ymax=ln[i], ymin=ln[i+1], color="blue", lw=0.5, alpha=0.3)
             elif plot_type == 'AUC':
-                if sample_result.iloc[i]["auc"] > 0:
+                if sample_result.iloc[i]["AUC"] > 0:
                     ax.vlines(hits, ymax=ln[i], ymin=ln[i+1], color="red", lw=0.5, alpha=0.3)    
                 else:
                     ax.vlines(hits, ymax=ln[i], ymin=ln[i+1], color="blue", lw=0.5, alpha=0.3)
         ax.set_title(f"Sample {sample_idx + 1}", fontsize=14)
         fig.patch.set_facecolor('white')
-        if not interactive_plot:
-            plt.ion()
         figures.append(fig)
     if n_samples == 1:
         return figures[0]
