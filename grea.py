@@ -3,9 +3,9 @@ import random
 from tqdm import tqdm
 from copy import deepcopy
 
-import enrich
-import genesig
-import sigtest
+from src import enrich
+from src import genesig
+from src import sigtest
 
 class GREA(object):
 
@@ -31,14 +31,27 @@ class GREA(object):
             symmetric = True
     
     def fit(self, sig_name, sig_val, library, method='KS',
-            prob_method='perm', sig_sep=';',
+            prob_method='perm', sig_sep=',',
             n_perm=1000,
             add_noise=False, center=True,
             verbose: bool=False,
             min_size: int=5, max_size: int=4000,
             accuracy: int=40, deep_accuracy: int=50, # ???
-            ):
-        
+            cal_method: str='ES',):
+        #2dim    
+        if sig_name.ndim == 1:
+            sig_name = sig_name.reshape(-1, 1)
+        if sig_val.ndim == 1:
+            sig_val = sig_val.reshape(-1, 1)
+
+        # Ensure that sig_name and sig_val have the same number of rows
+        if sig_name.shape[0] != sig_val.shape[0]:
+            raise ValueError("sig_name and sig_val must be same number of rows.")
+
+
+        #IF the column of sig_name is 1 and the column of sig_val is greater than 1, repeat sig_name to match the number of columns of sig_val
+        if sig_name.shape[1] == 1 and sig_val.shape[1] > 1:
+            sig_name = np.repeat(sig_name, sig_val.shape[1], axis=1)
         sig_name = deepcopy(sig_name)
         sig_val = deepcopy(sig_val)
         # sig_name: array (n_sig x n_sample), the name of signature

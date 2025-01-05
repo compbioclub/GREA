@@ -1,5 +1,7 @@
 import numpy as np
-import pandas as pd
+
+
+####NEW CODE####
 
 def process_signature(sig_val, center=True, add_noise=False):
     # optionally noise can be added as a fraction of the expression values
@@ -8,6 +10,9 @@ def process_signature(sig_val, center=True, add_noise=False):
     if center:
         sig_val -= sig_val.mean(axis=0)
     return sig_val
+
+
+
 
 def process_ss_signature(signature, center=True, add_noise=False):
     signature = signature.copy()
