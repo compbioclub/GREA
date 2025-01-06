@@ -79,16 +79,23 @@ def estimate_gamma_paras(nulls):
     nulls = nulls[nulls > 0] 
 
     if len(nulls) < 2:
-         print(f"Warning: Only {len(nulls)} valid data points for gamma fitting.")
-
+        raise ValueError("Not enough valid data to fit gamma distribution. Please consider using permutation method instead.")
     try:
         fit_alpha, fit_loc, fit_beta = gamma.fit(nulls, floc=0)
+        if not (np.isfinite(fit_alpha) and np.isfinite(fit_beta)):
+            raise ValueError(
+                "Gamma distribution fitting failed: invalid parameters. "
+                "Please consider using permutation method instead."
+            )
         ks = kstest(nulls, 'gamma', args=(fit_alpha, fit_loc, fit_beta))[1]
         return fit_alpha, fit_beta, ks
+    except Exception as e:
+        raise ValueError(
+            f"Failed to fit gamma distribution: {str(e)}. "
+            "Please consider using permutation method instead."
+        ) from e
 
-    except ValueError as e:
-        print(f"Gamma fitting failed: {e}")
-        return 2.0, 0.5, 1.0
+
 
 def pred_signgamma_prob(obs, nulls, symmetric=True, accuracy=40, deep_accuracy=50):
     probs = []
@@ -140,8 +147,20 @@ def pred_signgamma_prob_aux(obs, nulls, symmetric=True, accuracy=40, deep_accura
     return nes, pval
 
 def pred_gamma_prob(obs, nulls, accuracy=40, deep_accuracy=50):
+    print(f"Debug info:")
+    print(f"obs shape: {obs.shape}")
+    print(f"nulls shape: {nulls.shape}")
+    print(f"Number of non-zero nulls: {np.sum(nulls > 0)}")
+    print(f"Number of finite nulls: {np.sum(np.isfinite(nulls))}")
+    print(f"Sample nulls values: {nulls[:5]}")
+
     probs = []
     for i in range(obs.shape[0]):
+        current_nulls = nulls[:, i]
+        print(f"\nFor i={i}:")
+        print(f"Current nulls shape: {current_nulls.shape}")
+        print(f"Number of valid values: {np.sum((current_nulls > 0) & np.isfinite(current_nulls))}")
+        
         prob = pred_gamma_prob_aux(obs[i], nulls[:, i], accuracy=accuracy, deep_accuracy=deep_accuracy)
         probs.append(prob)
     return np.array(probs)
@@ -151,17 +170,15 @@ def pred_gamma_prob_aux(obs, nulls, accuracy=40, deep_accuracy=50):
 
     mp.dps = accuracy
     mp.prec = accuracy
-    try:
-        prob = gamma.cdf(obs, float(alpha_pos), scale=float(beta_pos))
+ 
+    prob = gamma.cdf(obs, float(alpha_pos), scale=float(beta_pos))
 
-        if prob > 0.999999999 or prob < 0.00000000001:
-            mp.dps = deep_accuracy
-            mp.prec = deep_accuracy
-            prob = gammacdf(obs, float(alpha_pos), float(beta_pos), dps=deep_accuracy)
-        return float(prob)
-    except ValueError as e:
-        print(f"Gamma cdf failed: {e}")
-        return 0.5
+    if prob > 0.999999999 or prob < 0.00000000001:
+        mp.dps = deep_accuracy
+        mp.prec = deep_accuracy
+        prob = gammacdf(obs, float(alpha_pos), float(beta_pos), dps=deep_accuracy)
+    return prob
+
 
 def sig_enrich(sig_name, sig_val, library, 
                sig_sep=',', method='KS', n_perm=1000, prob_method='perm',
@@ -340,19 +357,14 @@ def sig_enrich_KS(obs_rs, null_rs, prob_method='signgamma', cal_method='ES'):
     return  res
 
 def sig_enrich_RC(obs_rs, null_rs, prob_method='perm'):
-    try:
-        auc = enrich.get_AUC(obs_rs)
-        null_auc = enrich.get_AUC_null(null_rs)
-        auc_pval = pred_prob(auc, null_auc, prob_method=prob_method)
 
-        res = pd.DataFrame({
-            "AUC": auc, "AUC_pval": auc_pval, 
-            'prob_method': prob_method,
-        })
-        res = res.dropna(subset=["AUC"])
-        return res
-    except Exception as e:
-        print(f"Error in sig_enrich_RC: {str(e)}")
-        print(f"obs_rs shape: {obs_rs.shape}")
-        print(f"null_rs shape: {null_rs.shape}")
-        raise
+    auc = enrich.get_AUC(obs_rs)
+    null_auc = enrich.get_AUC_null(null_rs)
+    auc_pval = pred_prob(auc, null_auc, prob_method=prob_method)
+
+    res = pd.DataFrame({
+        "AUC": auc, "AUC_pval": auc_pval, 
+        'prob_method': prob_method,
+    })
+    res = res.dropna(subset=["AUC"])
+    return res
