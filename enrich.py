@@ -123,25 +123,38 @@ def get_AUC_null(null_rs):
     Returns:
         AUCs (np.ndarray): Array of size (n_perm, n_sample) with the computed AUCs.
     """
+
+    null_rs = null_rs.copy()
+    # print(f"Initial null_rs stats:")
+    # print(f"Shape: {null_rs.shape}")
+    # print(f"Non-zero values: {np.sum(null_rs != 0)}")
+    # print(f"Finite values: {np.sum(np.isfinite(null_rs))}")
+
     n_perm, n_sig, n_sample = null_rs.shape
     
-    # 对每个样本分别计算AUC
+   
     AUCs = np.zeros((n_perm, n_sample))
     
     for i in range(n_sample):
-        # 获取当前样本的数据
+        
         sample_data = null_rs[:, :, i]  # shape: (n_perm, n_sig)
         
-        # 移除包含NaN的行
-        valid_mask = ~np.isnan(sample_data).any(axis=1)
-        clean_data = sample_data[valid_mask, :]
+        # print(f"\nProcessing sample {i}:")
+        # print(f"Sample data shape: {sample_data.shape}")
+        # print(f"Non-zero values in sample: {np.sum(sample_data != 0)}")
         
-        if clean_data.shape[0] > 0:  # 确保有有效数据
-            # 计算AUC
-            AUCs[valid_mask, i] = (clean_data * (1.0 / n_sig)).sum(axis=1)
+        valid_mask = ~np.isnan(sample_data).any(axis=1)
+
+        #clean_data = sample_data[valid_mask, :]
+
+        # print(f"Valid rows in sample: {np.sum(valid_mask)}")
+        # print(f"Clean data shape: {clean_data.shape}")
+        if valid_mask.any():
+            AUCs[valid_mask, i] = np.sum(sample_data[valid_mask] * (1.0 / n_sig), axis=1)
+
         else:
             AUCs[:, i] = np.nan
-    
+
     return AUCs
 
 
