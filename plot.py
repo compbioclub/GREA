@@ -62,11 +62,14 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
     figures = [] 
 
     for i in range(n_samples):
+        
         sig_name_i = sig_name[:, i]
         sig_val_i = sig_val[:, i].astype(float)
         if center:
             sig_val_i = sig_val_i - np.mean(sig_val_i)
-            
+
+        sig_val[:, i] = sig_val_i
+
         lib_sigs = set(library.get(geneset, []))
         
         if len(lib_sigs) == 0:
@@ -110,17 +113,33 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         
         if plot_type == "ES":
             if result is not None and geneset in result.index:
-                nes = result.loc[geneset, "nes"]
-                #print(result.loc[geneset, "nes"])
-                if isinstance(nes, pd.Series):
-                    nes = nes.iloc[0]
-                    #print(nes)
-                label_text = f"NES={nes:.3f}"
-                va = 'bottom' if nes > 0 else 'top'
+                try:
+                    if isinstance(result.index, pd.MultiIndex):
+                        nes = result.xs((geneset, i), level=('Term', 'Sample'))['nes']
+                    else:
+                        nes = result.loc[geneset, 'nes']
+                        if isinstance(nes, pd.Series):
+                            nes = nes.iloc[i] if i < len(nes) else nes.iloc[0]
+                    
+                    if isinstance(nes, pd.Series):
+                        nes = nes.iloc[0]
+                    
+                    label_text = f"NES={nes:.3f}"
+                    va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+                    text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+                except Exception as e:
+                    es_value = float(es[0]) if isinstance(es, np.ndarray) else float(es)
+                    label_text = f"ES={es_value:.3f}"
+                    va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+                    text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
             else:
                 es_value = float(es[0]) if isinstance(es, np.ndarray) else float(es)
                 label_text = f"ES={es_value:.3f}"
-                va = 'bottom' if es_value > 0 else 'top'
+                va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+                text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+
+
+
         elif plot_type == "ESD":
             if result is not None and geneset in result.index:
                 nesd = result.loc[geneset, "nesd"]
@@ -149,14 +168,12 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         fontsize_text = 25 if compact else 20
         
         # text label
-        ax1.text(len(obs_rs)/30, 
-                0, 
-                label_text, 
-                size=fontsize_text, 
-                bbox={'facecolor':'white','alpha':0.8,'edgecolor':'none','pad':1}, 
-                ha='left', 
-                va=va, 
-                zorder=100) 
+        ax1.text(nn, text_y, label_text, 
+         size=fontsize_text, 
+         bbox={'facecolor':'white', 'alpha':0.8, 'edgecolor':'none', 'pad':1}, 
+         ha='center',  
+         va=va,        
+         zorder=100) 
 
         ax1.grid(True, which='both')
         ax1.set(xticks=[])
@@ -169,8 +186,12 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         if compact:
             ax2 = fig.add_subplot(gs[4:5, 0:11])
             hit_positions = np.where(overlap_ratios[:, 0] > 0)[0]
+            position_map = {old: new for new, old in enumerate(sort_indices.flatten())}
+            sorted_hit_positions = np.array([position_map[pos] for pos in hit_positions])
+    
             #print(hit_positions)
-            for pos in hit_positions:
+            for pos in sorted_hit_positions:
+                original_pos = hit_positions[np.where(sorted_hit_positions == pos)[0][0]]
                 ratio_val = overlap_ratios[pos, 0]
                 #print(pos, ratio_val)
                 color = cm(norm(ratio_val))
@@ -182,7 +203,7 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
             ax2.set_xlabel("Rank", fontsize=24)
             
 
-            rank_vec = sig_val[:, 0].flatten().astype(float)
+            rank_vec = sig_val_i.faltten()
             pos_indices = np.where(rank_vec > 0)[0]
             neg_indices = np.where(rank_vec <= 0)[0]
             
@@ -209,9 +230,14 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         else:
             ax2 = fig.add_subplot(gs[7:8, 0:11])
             hit_positions = np.where(overlap_ratios[:, 0] > 0)[0]
+
+            position_map = {old: new for new, old in enumerate(sort_indices.flatten())}
+            sorted_hit_positions = np.array([position_map[pos] for pos in hit_positions])
+
             #print(hit_positions)
-            for pos in hit_positions:
-                ratio_val = overlap_ratios[pos, 0]
+            for pos in sorted_hit_positions:
+                original_pos = hit_positions[np.where(sorted_hit_positions == pos)[0][0]]
+                ratio_val = overlap_ratios[original_pos, 0]
                 #print(pos, ratio_val)
                 color = cm(norm(ratio_val))
                 ax2.vlines(x=pos, ymin=-1, ymax=1, color=color, lw=0.5)
@@ -222,7 +248,7 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
 
 
             ax3 = fig.add_subplot(gs[8:12, 0:11])
-            rank_vec = sig_val[:, 0].flatten().astype(float)
+            rank_vec = sig_val_i[sort_indices.flatten()]
             step = max(1, len(rank_vec) // 100)
             x = np.arange(0, len(rank_vec), step).astype(int)
             x = np.append(x, len(rank_vec)-1)
@@ -238,14 +264,16 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
             ax3.hlines(y=0, xmin=0, xmax=len(rank_vec), color="black", zorder=100, lw=0.6)
             ax3.set_xlim([0, len(obs_rs)])
             ax3.set_ylim([np.min(rank_vec), np.max(rank_vec)])
-            minabs = np.min(np.abs(rank_vec))
-            zero_cross_indices = np.where(np.abs(rank_vec) == minabs)[0]
+            
+            signs = np.sign(rank_vec)
+            zero_cross_indices = np.where(signs[:-1] != signs[1:])[0]
             if zero_cross_indices.size > 0:
                 zero_cross = int(zero_cross_indices[0])
-                ax3.vlines(x=zero_cross, ymin=np.min(rank_vec), ymax=np.max(rank_vec), linestyle=':')
+                ax3.vlines(x=zero_cross, ymin=np.min(rank_vec), ymax=np.max(rank_vec), linestyle=':',color = 'black')
                 ax3.text(zero_cross, np.max(rank_vec)/3, "Zero crosses at "+str(zero_cross), 
                         bbox={'facecolor':'white','alpha':0.5,'edgecolor':'none','pad':1}, 
                         ha='center', va='center')
+
             plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
             plt.xlabel("Rank in Ordered Dataset", fontsize=16)
             plt.ylabel("Ranked list metric", fontsize=16)
