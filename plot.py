@@ -9,7 +9,6 @@ from src import sigtest
 
 
 
-
 def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False, center=True, interactive_plot=False, plot_type="ES", method="KS", sig_sep=',', cmap='YlGnBu'):
     """
     Plot the running sum for a given geneset and signature.
@@ -25,7 +24,8 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
     Returns:
     figure: The running sum plot for the given geneset and signature.
     """
-    result = result.set_index(['Term'])
+    result = result.copy()
+    # result = result.set_index(['Term'])
     if not interactive_plot:
         plt.ioff()
 
@@ -363,7 +363,7 @@ def top_table(sig_name, sig_val, library, result, n=10, center=True, interactive
         if center:
             col_sig_val = col_sig_val - np.mean(col_sig_val)    
 
-        sample_result = result.xs(key=sample_idx, level="Sample")
+        sample_result = result.xs(key=sample_idx, level= "Sample")
         #print("Sample result index:", sample_result.index)
         top_n = min(n, len(result))
          
