@@ -142,26 +142,58 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
 
         elif plot_type == "ESD":
             if result is not None and geneset in result.index:
-                nesd = result.loc[geneset, "nesd"]
-                if isinstance(nesd, pd.Series):
-                    nesd = nesd.iloc[0]
-                label_text = f"NESD={nesd:.3f}"
-                va = 'bottom' if nesd > 0 else 'top'
+                try:
+                    if isinstance(result.index, pd.MultiIndex):
+                        nesd = result.xs((geneset, i), level=('Term', 'Sample'))['nesd']
+                    else:
+                        nesd = result.loc[geneset, 'nesd']
+                        if isinstance(nesd, pd.Series):
+                            nesd = nesd.iloc[i] if i < len(nesd) else nesd.iloc[0]
+                    
+                    if isinstance(nesd, pd.Series):
+                        nesd = nesd.iloc[0]
+                    
+                    label_text = f"NESD={nesd:.3f}"
+                    va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+                    text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+                except Exception as e:
+                    esd_value = float(esd[0]) if isinstance(esd, np.ndarray) else float(esd)
+                    label_text = f"ES={esd_value:.3f}"
+                    va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+                    text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
             else:
                 esd_value = float(esd[0]) if isinstance(esd, np.ndarray) else float(esd)
-                label_text = f"ESD={esd_value:.3f}"
-                va = 'bottom' if esd_value > 0 else 'top'
+                label_text = f"ES={esd_value:.3f}"
+                va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+                text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+
+
         elif plot_type == "AUC":
             if result is not None and geneset in result.index and "AUC" in result.columns:
-                auc = result.loc[geneset, "AUC"]
-                if isinstance(auc, pd.Series):
-                    auc = auc.iloc[0]
-                label_text = f"AUC={auc:.3f}"
-                va = 'bottom' if auc > 0 else 'top'
+                try:
+                    if isinstance(result.index, pd.MultiIndex):
+                        auc = result.xs((geneset, i), level=('Term', 'Sample'))['auc']
+                    else:
+                        auc = result.loc[geneset, 'auc']
+                        if isinstance(auc, pd.Series):
+                            auc = auc.iloc[i] if i < len(auc) else auc.iloc[0]
+                    
+                    if isinstance(auc, pd.Series):
+                        auc = auc.iloc[0]
+                    
+                    label_text = f"AUC={auc:.3f}"
+                    va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+                    text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+                except Exception as e:
+                    auc_value = float(auc[0]) if isinstance(auc, np.ndarray) else float(auc)
+                    label_text = f"ES={auc_value:.3f}"
+                    va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+                    text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
             else:
                 auc_value = float(auc[0]) if isinstance(auc, np.ndarray) else float(auc)
-                label_text = f"AUC={auc_value:.3f}"
-                va = 'bottom' if auc_value > 0 else 'top'
+                label_text = f"ES={auc_value:.3f}"
+                va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+                text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
         else:
             raise ValueError("Invalid plot_type. Choose from 'ES', 'ESD', or 'AUC'.")
 
