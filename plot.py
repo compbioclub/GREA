@@ -337,6 +337,7 @@ def top_table(sig_name, sig_val, library, result, n=10, center=True, interactive
     Returns:
     figure: The running sum plot for the given geneset and signature.
     """
+
     if not isinstance(result.index, pd.MultiIndex):
         result = result.set_index(['Term', 'Sample'])
 
@@ -344,8 +345,9 @@ def top_table(sig_name, sig_val, library, result, n=10, center=True, interactive
         plt.ioff()
     sig_name = sig_name.copy()
     sig_val = sig_val.copy().astype(float)
+
     if sig_val.shape[1] != sig_name.shape[1]:
-         if sig_val.shape[1] > sig_name.shape[1]:
+        if sig_val.shape[1] > sig_name.shape[1]:
             sig_name = np.repeat(sig_name[:, -1:], sig_val.shape[1], axis=1)
    
     n_samples = sig_val.shape[1]
@@ -357,8 +359,16 @@ def top_table(sig_name, sig_val, library, result, n=10, center=True, interactive
         col_sig_val = sig_val[:, sample_idx:sample_idx+1]
 
         df = pd.DataFrame({"sig_name": col_sig_name.flatten(), "sig_val": col_sig_val.flatten()})
-        sig = df.sort_values(by="sig_val", ascending=False).set_index("sig_name")
+        split_genes = df['sig_name'].str.split('_').explode()
+        
+        df_expanded = pd.DataFrame({
+            'sig_name': split_genes,
+            'sig_val': df['sig_val'].repeat(df['sig_name'].str.split('_').str.len())
+        })
+
+        sig = df_expanded.sort_values(by="sig_val", ascending=False).set_index("sig_name")
         sig = sig[~sig.index.duplicated(keep='first')]
+
 
         if center:
             col_sig_val = col_sig_val - np.mean(col_sig_val)    
@@ -386,6 +396,7 @@ def top_table(sig_name, sig_val, library, result, n=10, center=True, interactive
 
         ax.text(0.84, 1.03, "SET", fontsize=16)
 
+        
         for i in range(top_n):
             if plot_type == 'ES':
                 value = sample_result.iloc[i]["nes"] 
@@ -399,9 +410,17 @@ def top_table(sig_name, sig_val, library, result, n=10, center=True, interactive
             ax.text(0.84, (ln[i]+ln[i+1])/2, sample_result.index[i], verticalalignment='center')
 
             term_name = sample_result.index[i]
+
             gs = set(library[term_name])
+            print(f"Number of genes in gene set: {len(gs)}")
+
+            common_genes = [x for x in sig.index if x in gs]
+            print(f"Number of overlapping genes: {len(common_genes)}")
+            
+
             hits = np.array([i for i,x in enumerate(sig.index) if x in gs])
             hits = (hits/len(sig.index))*0.6+0.2
+            print(f"Hit positions: {hits}")
 
             if plot_type == 'ES':    
                 if sample_result.iloc[i]["nes"] > 0:
