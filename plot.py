@@ -6,7 +6,10 @@ from scipy.stats import gamma
 from matplotlib.patches import Rectangle
 from src import enrich
 from src import sigtest
-
+import seaborn as sns
+from scipy.cluster import hierarchy
+from scipy.spatial.distance import pdist
+from scipy import stats
 
 
 def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False, center=True, interactive_plot=False, plot_type="ES", method="KS", sig_sep=',', cmap='YlGnBu'):
@@ -25,7 +28,7 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
     figure: The running sum plot for the given geneset and signature.
     """
     result = result.copy()
-    # result = result.set_index(['Term'])
+    result = result.set_index(['Term'])
     if not interactive_plot:
         plt.ioff()
 
@@ -91,15 +94,19 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         AUC = enrich.get_AUC(obs_rs)
         obs_rs = list(obs_rs[:,0])
 
-        fig = plt.figure(figsize=(7,5))
+        fig = plt.figure(figsize=(7,5),facecolor='white',edgecolor='black')
         
         if compact:
             gs = fig.add_gridspec(5, 11, wspace=0, hspace=0)
-            ax1 = fig.add_subplot(gs[0:4, 0:11])
+            ax1 = fig.add_subplot(gs[0:4, 0:11], facecolor='white')
         else:
             gs = fig.add_gridspec(12, 11, wspace=0, hspace=0)
-            ax1 = fig.add_subplot(gs[0:7, 0:11])
-    
+            ax1 = fig.add_subplot(gs[0:7, 0:11],facecolor='white')
+
+        for spine in ax1.spines.values():
+            spine.set_edgecolor('black')
+            spine.set_linewidth(1)
+
         if compact:
             ax1.plot(obs_rs, color=(0,1,0), lw=5)
             ax1.tick_params(labelsize=24)
@@ -111,103 +118,108 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         nn = np.argmax(np.abs(obs_rs))  
         ax1.vlines(x=nn, ymin=np.min(obs_rs), ymax=np.max(obs_rs),linestyle = ':', color="red")
         
-        if plot_type == "ES":
-            if result is not None and geneset in result.index:
-                try:
-                    if isinstance(result.index, pd.MultiIndex):
-                        nes = result.xs((geneset, i), level=('Term', 'Sample'))['nes']
-                    else:
-                        nes = result.loc[geneset, 'nes']
-                        if isinstance(nes, pd.Series):
-                            nes = nes.iloc[i] if i < len(nes) else nes.iloc[0]
+        # if plot_type == "ES":
+        #     if result is not None and geneset in result.index:
+        #         try:
                     
-                    if isinstance(nes, pd.Series):
-                        nes = nes.iloc[0]
+        #             if isinstance(result.index, pd.MultiIndex):
+        #                 nes = result.xs((geneset, i), level=('Term', 'Sample'))['nes']
+        #             else:
+        #                 nes = result.loc[geneset, 'nes']
+        #                 if isinstance(nes, pd.Series):
+        #                     nes = nes.iloc[i] if i < len(nes) else nes.iloc[0]
                     
-                    label_text = f"NES={nes:.3f}"
-                    va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-                    text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
-                except Exception as e:
-                    es_value = float(es[0]) if isinstance(es, np.ndarray) else float(es)
-                    label_text = f"ES={es_value:.3f}"
-                    va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-                    text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
-            else:
-                es_value = float(es[0]) if isinstance(es, np.ndarray) else float(es)
-                label_text = f"ES={es_value:.3f}"
-                va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-                text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+        #             if isinstance(nes, pd.Series):
+        #                 nes = nes.iloc[0]
+                    
+        #             label_text = f"NES={nes:.3f}"
+        #             va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+        #             text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+        #         except Exception as e:
+                    
+        #             es_value = float(es[0]) if isinstance(es, np.ndarray) else float(es)
+        #             label_text = f"ES={es_value:.3f}"
+        #             va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+        #             text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+        #     else:
+        #         es_value = float(es[0]) if isinstance(es, np.ndarray) else float(es)
+        #         label_text = f"ES={es_value:.3f}"
+        #         va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+        #         text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
 
 
 
-        elif plot_type == "ESD":
-            if result is not None and geneset in result.index:
-                try:
-                    if isinstance(result.index, pd.MultiIndex):
-                        nesd = result.xs((geneset, i), level=('Term', 'Sample'))['nesd']
-                    else:
-                        nesd = result.loc[geneset, 'nesd']
-                        if isinstance(nesd, pd.Series):
-                            nesd = nesd.iloc[i] if i < len(nesd) else nesd.iloc[0]
+        # elif plot_type == "ESD":
+        #     if result is not None and geneset in result.index:
+        #         try:
                     
-                    if isinstance(nesd, pd.Series):
-                        nesd = nesd.iloc[0]
+        #             if isinstance(result.index, pd.MultiIndex):
+        #                 nesd = result.xs((geneset, i), level=('Term', 'Sample'))['nesd']
+        #             else:
+        #                 nesd = result.loc[geneset, 'nesd']
+        #                 if isinstance(nesd, pd.Series):
+        #                     nesd = nesd.iloc[i] if i < len(nesd) else nesd.iloc[0]
                     
-                    label_text = f"NESD={nesd:.3f}"
-                    va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-                    text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
-                except Exception as e:
-                    esd_value = float(esd[0]) if isinstance(esd, np.ndarray) else float(esd)
-                    label_text = f"ES={esd_value:.3f}"
-                    va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-                    text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
-            else:
-                esd_value = float(esd[0]) if isinstance(esd, np.ndarray) else float(esd)
-                label_text = f"ES={esd_value:.3f}"
-                va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-                text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+        #             if isinstance(nesd, pd.Series):
+        #                 nesd = nesd.iloc[0]
+                    
+        #             label_text = f"NESD={nesd:.3f}"
+        #             va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+        #             text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+        #         except Exception as e:
+                    
+        #             esd_value = float(esd[0]) if isinstance(esd, np.ndarray) else float(esd)
+        #             label_text = f"ESD={esd_value:.3f}"
+        #             va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+        #             text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+        #     else:
+                
+        #         esd_value = float(esd[0]) if isinstance(esd, np.ndarray) else float(esd)
+        #         label_text = f"ESD={esd_value:.3f}"
+        #         va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+        #         text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
 
 
-        elif plot_type == "AUC":
-            if result is not None and geneset in result.index and "AUC" in result.columns:
-                try:
-                    if isinstance(result.index, pd.MultiIndex):
-                        auc = result.xs((geneset, i), level=('Term', 'Sample'))['auc']
-                    else:
-                        auc = result.loc[geneset, 'auc']
-                        if isinstance(auc, pd.Series):
-                            auc = auc.iloc[i] if i < len(auc) else auc.iloc[0]
+        # elif plot_type == "AUC":
+        #     if result is not None and geneset in result.index and "AUC" in result.columns:
+        #         try:
+        #             if isinstance(result.index, pd.MultiIndex):
+        #                 auc = result.xs((geneset, i), level=('Term', 'Sample'))['AUC']
+        #             else:
+        #                 auc = result.loc[geneset, 'AUC']
+        #                 if isinstance(auc, pd.Series):
+        #                     auc = auc.iloc[i] if i < len(auc) else auc.iloc[0]
                     
-                    if isinstance(auc, pd.Series):
-                        auc = auc.iloc[0]
+        #             if isinstance(auc, pd.Series):
+        #                 auc = auc.iloc[0]
                     
-                    label_text = f"AUC={auc:.3f}"
-                    va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-                    text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
-                except Exception as e:
-                    auc_value = float(auc[0]) if isinstance(auc, np.ndarray) else float(auc)
-                    label_text = f"ES={auc_value:.3f}"
-                    va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-                    text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
-            else:
-                auc_value = float(auc[0]) if isinstance(auc, np.ndarray) else float(auc)
-                label_text = f"ES={auc_value:.3f}"
-                va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-                text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
-        else:
-            raise ValueError("Invalid plot_type. Choose from 'ES', 'ESD', or 'AUC'.")
+        #             label_text = f"AUC={auc:.3f}"
+        #             va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+        #             text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+        #         except Exception as e:
+        #             auc_value = float(AUC[0]) if isinstance(auc, np.ndarray) else float(AUC)
+        #             label_text = f"AUC={auc_value:.3f}"
+        #             va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+        #             text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+        #     else:
+        #         auc_value = float(AUC[0]) if isinstance(AUC, np.ndarray) else float(AUC)
+        #         label_text = f"AUC={auc_value:.3f}"
+        #         va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
+        #         text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+        # else:
+        #     raise ValueError("Invalid plot_type. Choose from 'ES', 'ESD', or 'AUC'.")
 
-        fontsize_text = 25 if compact else 20
+        # fontsize_text = 25 if compact else 20
         
-        # text label
-        ax1.text(nn, text_y, label_text, 
-         size=fontsize_text, 
-         bbox={'facecolor':'white', 'alpha':0.8, 'edgecolor':'none', 'pad':1}, 
-         ha='center',  
-         va=va,        
-         zorder=100) 
-
-        ax1.grid(True, which='both')
+        # # text label
+        # ax1.text(nn, text_y, label_text, 
+        #  size=fontsize_text, 
+        #  bbox={'facecolor':'white', 'alpha':0.8, 'edgecolor':'none', 'pad':1}, 
+        #  ha='center',  
+        #  va=va,        
+        #  zorder=100) 
+        
+        ax1.grid(True, color='lightgray', linestyle='-', linewidth=0.5, alpha=0.5)
         ax1.set(xticks=[])
         plt.title(f"{geneset} - {plot_type}(Celltype{i+1})", fontsize=18)
         plt.ylabel("Enrichment Score (ES)" if plot_type == "ES" else 
@@ -216,7 +228,10 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         
 
         if compact:
-            ax2 = fig.add_subplot(gs[4:5, 0:11])
+            ax2 = fig.add_subplot(gs[4:5, 0:11],facecolor='white')
+            for spine in ax2.spines.values():
+                spine.set_edgecolor('black')
+                spine.set_linewidth(1)
             hit_positions = np.where(overlap_ratios[:, 0] > 0)[0]
             position_map = {old: new for new, old in enumerate(sort_indices.flatten())}
             sorted_hit_positions = np.array([position_map[pos] for pos in hit_positions])
@@ -235,7 +250,7 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
             ax2.set_xlabel("Rank", fontsize=24)
             
 
-            rank_vec = sig_val_i.faltten()
+            rank_vec = sig_val_i.flatten()
             pos_indices = np.where(rank_vec > 0)[0]
             neg_indices = np.where(rank_vec <= 0)[0]
             
@@ -260,7 +275,10 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
                     
                   
         else:
-            ax2 = fig.add_subplot(gs[7:8, 0:11])
+            ax2 = fig.add_subplot(gs[7:8, 0:11],facecolor='white')
+            for spine in ax2.spines.values():
+                spine.set_edgecolor('black')
+                spine.set_linewidth(1)
             hit_positions = np.where(overlap_ratios[:, 0] > 0)[0]
 
             position_map = {old: new for new, old in enumerate(sort_indices.flatten())}
@@ -279,7 +297,10 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
             ax2.set(xticks=[])
 
 
-            ax3 = fig.add_subplot(gs[8:12, 0:11])
+            ax3 = fig.add_subplot(gs[8:12, 0:11],facecolor='white')
+            for spine in ax3.spines.values():
+                spine.set_edgecolor('black')
+                spine.set_linewidth(1)
             rank_vec = sig_val_i[sort_indices.flatten()]
             step = max(1, len(rank_vec) // 100)
             x = np.arange(0, len(rank_vec), step).astype(int)
@@ -461,3 +482,129 @@ def plot_box(ax, data, ranks, color, label, min_p_value_line=None, line_label=No
         ax.text(data.shape[0], min_p_value_line, line_label, fontsize=14, horizontalalignment='right', verticalalignment='bottom')
     return box        
 
+
+def plot_gene_heatmap(data, 
+                     output_path=None,
+                     cluster=True,
+                     cluster_method='ward',
+                     figsize=(12, 8),
+                     cmap="RdBu_r",
+                     show_gene_x_labels=True,
+                     show_gene_y_labels=True,
+                     font_scale=0.8,
+                     center=0,
+                     gene_list=None,
+                     sample_list=None,
+                     top_n_genes=50,
+                     selection_method='var',
+                     sig_sep=','):
+
+    """
+    Generate a heatmap for gene expression data.
+    
+    Parameters:
+    -----------
+    data : DataFrame or str
+        Expression matrix with samples as columns and genes as rows.
+    sig_sep : str, optional
+        Separator character in gene names to split on (default: ',')
+        If specified, will check and process gene names containing this separator
+    """
+    try:
+        # 1. Load and preprocess data
+        df = data.copy()
+        
+        # Check for separator in gene names and warn if found
+        if sig_sep:
+            genes_with_sep = df.index[df.index.str.contains(sig_sep, regex=False)]
+            if len(genes_with_sep) > 0:
+                print(f"Warning: Found {len(genes_with_sep)} gene names containing '{sig_sep}'")
+                print("Example genes:", genes_with_sep[:5].tolist())
+                user_input = input(f"Would you like to split these gene names on '{sig_sep}'? (y/n): ")
+                if user_input.lower() == 'y':
+                    # Split gene names and keep the first part
+                    df.index = df.index.str.split(sig_sep).str[0]
+                    print("Gene names have been processed.")
+        # Convert all data to numeric, forcing non-numeric to NaN
+        df = df.apply(pd.to_numeric, errors='coerce')
+    
+        
+        # 3. Select top genes if no specific gene_list is provided
+        if gene_list is None:
+            if selection_method == 'var':
+                gene_vars = df.var(axis=1)
+                # Handle any remaining non-numeric values
+                gene_vars = pd.to_numeric(gene_vars, errors='coerce')
+                gene_vars = gene_vars.fillna(0)
+                selected_genes = gene_vars.sort_values(ascending=False).head(top_n_genes).index.tolist()
+            elif selection_method == 'mean':
+                gene_means = df.abs().mean(axis=1)
+                gene_means = pd.to_numeric(gene_means, errors='coerce')
+                gene_means = gene_means.fillna(0)
+                selected_genes = gene_means.sort_values(ascending=False).head(top_n_genes).index.tolist()
+            elif selection_method == 'mad':
+                gene_mads = df.apply(lambda x: np.median(np.abs(x - np.median(x))), axis=1)
+                gene_mads = pd.to_numeric(gene_mads, errors='coerce')
+                gene_mads = gene_mads.fillna(0)
+                selected_genes = gene_mads.sort_values(ascending=False).head(top_n_genes).index.tolist()
+            else:
+                raise ValueError("Invalid selection_method. Choose 'var', 'mean', or 'mad'")
+            
+            df = df.loc[selected_genes]
+        else:
+            df = df.loc[gene_list]
+
+
+        # 4. Filter samples if specified
+        if sample_list is not None:
+            df = df[sample_list]
+
+        single_sample = df.shape[1] == 1
+        single_gene = df.shape[0] == 1
+
+        if   single_sample or single_gene:
+            cluster = False
+            
+        # 6. Set up plotting parameters
+        sns.set(font_scale=font_scale)
+        plt.figure(figsize=figsize)
+        
+        # 7. Generate heatmap
+        if cluster:
+            # Perform hierarchical clustering
+            row_linkage = hierarchy.linkage(row_dist, method=cluster_method)
+            col_linkage = hierarchy.linkage(col_dist, method=cluster_method)
+            
+            # Create clustered heatmap
+            g = sns.clustermap(df,
+                                row_linkage=row_linkage,
+                                col_linkage=col_linkage,
+                                cmap=cmap,
+                                center=center,
+                                xticklabels=show_gene_x_labels,
+                                yticklabels=show_gene_y_labels,
+                                figsize=figsize)
+            g.ax_heatmap.set_xlabel("Samples", fontsize=20)
+            g.ax_heatmap.set_ylabel("Genes", fontsize=20)
+            g.fig.suptitle("Gene Expression Heatmap", fontsize=24)
+        else:
+            ax = sns.heatmap(df,
+                           cmap=cmap,
+                           center=center,
+                           xticklabels=show_gene_x_labels,
+                           yticklabels=show_gene_y_labels)
+            ax.set_xlabel("Samples", fontsize=20)
+            ax.set_ylabel("Genes", fontsize=20)
+            ax.set_title("Gene Expression Heatmap", fontsize=24)
+        # 8. Adjust layout
+        plt.tight_layout()
+        
+        # 9. Save or display the figure
+        if output_path:
+            plt.savefig(output_path, dpi=300, bbox_inches='tight')
+            plt.close()
+        else:
+            plt.show()
+        
+    except Exception as e:
+        print(f"Error: {str(e)}")
