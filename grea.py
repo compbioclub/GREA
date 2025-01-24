@@ -63,6 +63,7 @@ class GREA(object):
                 method=method, n_perm=n_perm, prob_method=prob_method,
                 seed = self.seed, processes=self.processes,
                 verbose=verbose, min_size=min_size, max_size=max_size,
-                accuracy=accuracy, deep_accuracy=deep_accuracy, # ???
+                accuracy=accuracy, deep_accuracy=deep_accuracy,
+                cal_method=cal_method, # ???
         )
         return res
