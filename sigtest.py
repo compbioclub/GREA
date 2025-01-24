@@ -90,10 +90,12 @@ def estimate_gamma_paras(nulls):
         ks = kstest(nulls, 'gamma', args=(fit_alpha, fit_loc, fit_beta))[1]
         return fit_alpha, fit_beta, ks
     except Exception as e:
-        raise ValueError(
-            f"Failed to fit gamma distribution: {str(e)}. "
-            "Please consider using permutation method instead."
-        ) from e
+        print(f"Warning: Failed to fit gamma distribution: {str(e)}. Using default parameters.")
+        print(f"Data summary - mean: {np.mean(nulls):.3f}, "
+              f"var: {np.var(nulls):.3f}, "
+              f"range: [{np.min(nulls):.3f}, {np.max(nulls):.3f}], "
+              f"size: {len(nulls)}")
+        return 2.0, 1.0, 1.0
 
 
 
@@ -147,12 +149,6 @@ def pred_signgamma_prob_aux(obs, nulls, symmetric=True, accuracy=40, deep_accura
     return nes, pval
 
 def pred_gamma_prob(obs, nulls, accuracy=40, deep_accuracy=50):
-    print(f"Debug info:")
-    print(f"obs shape: {obs.shape}")
-    print(f"nulls shape: {nulls.shape}")
-    print(f"Number of non-zero nulls: {np.sum(nulls > 0)}")
-    print(f"Number of finite nulls: {np.sum(np.isfinite(nulls))}")
-    print(f"Sample nulls values: {nulls[:5]}")
 
     probs = []
     for i in range(obs.shape[0]):
@@ -160,7 +156,6 @@ def pred_gamma_prob(obs, nulls, accuracy=40, deep_accuracy=50):
         print(f"\nFor i={i}:")
         print(f"Current nulls shape: {current_nulls.shape}")
         print(f"Number of valid values: {np.sum((current_nulls > 0) & np.isfinite(current_nulls))}")
-        
         prob = pred_gamma_prob_aux(obs[i], nulls[:, i], accuracy=accuracy, deep_accuracy=deep_accuracy)
         probs.append(prob)
     return np.array(probs)
@@ -217,12 +212,17 @@ def sig_enrich(sig_name, sig_val, library,
             KS_res = sig_enrich_KS(obs_rs, null_rs, prob_method=prob_method,cal_method=cal_method)
             res = pd.concat([res, KS_res], axis=1)
             res=res.sort_values("esd_pval", key=abs, ascending=True)
+        
         if method == 'RC':
             RC_res = sig_enrich_RC(obs_rs, null_rs, prob_method=prob_method)
             
             res = pd.concat([res, RC_res], axis=1)
             res=res.sort_values("AUC_pval", key=abs, ascending=True)
 
+        if method == 'PLAGE':
+            obs_plage = enrich.get_plage(sig_val)
+            null_plage = enrich.get_plage_null(sig_val,overlap_ratios, n_perm=n_perm)
+            
         df_list.append(res)
     
     if not verbose:

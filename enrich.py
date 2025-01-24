@@ -1,5 +1,6 @@
 import numpy as np
 import random
+from scipy.linalg import svd
 
 def get_leading_edge(i2sig, hit_indicator, ES, peak):
     if ES > 0:
@@ -73,29 +74,6 @@ def get_running_sum_aux(sorted_abs, overlap_ratios, sort_indices, method='KS'):
     return running_sum
 
 
-    # if n_sig == 1:
-    #     sorted_or = np.take_along_axis(overlap_ratios[:, np.newaxis], sort_indices, axis=0)
-    # else:
-    #     sorted_or = np.take_along_axis(overlap_ratios, sort_indices, axis=0)
-
-    # sum_hit_scores = np.sum(sorted_abs * sorted_or, axis=0)
-    # norm_hit = 1.0/sum_hit_scores.astype(float)
-
-    # if method == 'KS':
-    #     norm_miss = 1.0/number_miss
-    #     if n_sig == 1:
-    #         sorted_miss = np.take_along_axis(miss_indicator[:, np.newaxis], sort_indices, axis=0)
-    #     else:
-    #         sorted_miss = np.take_along_axis(miss_indicator, sort_indices, axis=0)
-
-    #     score = sorted_or * sorted_abs * norm_hit[np.newaxis, :] - sorted_miss * norm_miss
-    # else: # RC - recovery curve
-    #     score = sorted_or * sorted_abs * norm_hit[np.newaxis, :]
-    # running_sum = np.cumsum(score, axis=0)
-    # running_sum  n_sig x n_sample
-
-    # return running_sum
-
 def get_AUC(obs_rs):
     # running_sum  n_sig x n_sample
     n_sig, n_sample = obs_rs.shape
@@ -123,38 +101,16 @@ def get_AUC_null(null_rs):
     Returns:
         AUCs (np.ndarray): Array of size (n_perm, n_sample) with the computed AUCs.
     """
-
     null_rs = null_rs.copy()
-    # print(f"Initial null_rs stats:")
-    # print(f"Shape: {null_rs.shape}")
-    # print(f"Non-zero values: {np.sum(null_rs != 0)}")
-    # print(f"Finite values: {np.sum(np.isfinite(null_rs))}")
-
-    n_perm, n_sig, n_sample = null_rs.shape
-    
-   
+    n_perm, n_sig, n_sample = null_rs.shape   
     AUCs = np.zeros((n_perm, n_sample))
-    
-    for i in range(n_sample):
-        
+    for i in range(n_sample):    
         sample_data = null_rs[:, :, i]  # shape: (n_perm, n_sig)
-        
-        # print(f"\nProcessing sample {i}:")
-        # print(f"Sample data shape: {sample_data.shape}")
-        # print(f"Non-zero values in sample: {np.sum(sample_data != 0)}")
-        
         valid_mask = ~np.isnan(sample_data).any(axis=1)
-
-        #clean_data = sample_data[valid_mask, :]
-
-        # print(f"Valid rows in sample: {np.sum(valid_mask)}")
-        # print(f"Clean data shape: {clean_data.shape}")
         if valid_mask.any():
             AUCs[valid_mask, i] = np.sum(sample_data[valid_mask] * (1.0 / n_sig), axis=1)
-
         else:
             AUCs[:, i] = np.nan
-
     return AUCs
 
 
@@ -198,3 +154,113 @@ def get_ES_ESD_null(null_rs):
     # Calculate the enrichment score difference (ESD) for each n_perm and n_sample
     ESD = max_positive + max_negative
     return ES, ESD, peak
+
+
+def get_plage(sig_val):
+    """
+    Perform PLAGE (Pathway Level Analysis of Gene Expression) analysis.
+    
+    Parameters:
+    -----------
+    sig_name : np.ndarray
+        Gene names matrix, shape (n_genes, n_samples)
+    sig_val : np.ndarray
+        Expression value matrix, shape (n_genes, n_samples)
+    library : dict
+        Dictionary of pathway/gene set definitions
+    sig_sep : str, optional
+        Separator for multiple gene names in sig_name
+        
+    Returns:
+    --------
+    pd.DataFrame
+        Results containing pathway activity scores and statistics
+    """
+    sort_indices = np.argsort(sig_val, axis=0)[::-1, :]
+    sorted_sig = np.take_along_axis(sig_val, sort_indices, axis=0)
+    sorted_abs = np.abs(sorted_sig) 
+    U, s, Vt = svd(sorted_abs, full_matrices=False)
+    plage = Vt[0, :]
+    return plage
+
+def get_plage_null(sig_val, n_perm=1000):
+    """
+    Generate null distribution for PLAGE activity scores through permutation.
+    
+    Parameters:
+    -----------
+    sig_val : np.ndarray
+        Expression value matrix, shape (n_genes, n_samples)
+    overlap_ratios : np.ndarray
+        Overlap ratios matrix, shape (n_genes, n_samples)
+    n_perm : int
+        Number of permutations
+        
+    Returns:
+    --------
+    np.ndarray
+        Null distribution of activity scores, shape (n_perm, n_samples)
+    """
+    n_sig, n_sample = sig_val.shape
+    null_scores = np.zeros((n_perm, n_sample))
+    
+    for i in range(n_perm):
+        
+        perm_indices = np.array([np.random.permutation(n_sig) for _ in range(n_sample)])
+        perm_sig_val = np.array([sig_val[idx, j] for j, idx in enumerate(perm_indices.T)]).T
+        null_scores[i, :] = get_plage(perm_sig_val)
+    return null_scores
+
+
+
+
+def get_z_score(sig_val):
+    zscore = []
+    sort_indices = np.argsort(sig_val, axis=0)[::-1, :]
+    sorted_sig = np.take_along_axis(sig_val, sort_indices, axis=0)
+    sorted_abs = np.abs(sorted_sig) 
+    zscore.append(np.sum(sig_val[sorted_abs, :], axis=0) / np.sqrt(len(sorted_abs)))
+    return zscore   
+
+def get_z_score_null(sig_val, n_perm=1000):
+
+    n_sig, n_sample = sig_val.shape
+    z_score_null = np.zeros((n_perm, n_sample))
+
+
+    for i in range(n_perm):
+    
+    
+
+    return z_score_null
+
+
+def get_vision(sig_val, overlap_ratios, lib_sigs, sig_sep: str = ','):
+
+    """
+    Calculate VISION style signature scores using formula:
+    sj = (Σ(Gpos) egj - Σ(Gneg) egj) / (|Gpos| + |Gneg|)
+    """
+    pos_genes = []
+    neg_genes = []
+    for 
+    
+    vision = (np.sum(sig_val[pos_idx],axis=0) - np.sum(sig_val[neg_idx],axis=0)) / (np.sum(pos_idx) - np.sum(neg_idx))
+    cell_means = np.mean(sig_val,axis=0)
+    cell_vars = np.var(sig_val,axis=0)
+    expected_means = ((len(pos_idx)-len(neg_idx)) / (np.sum(pos_idx) - np.sum(neg_idx))) * cell_means
+
+    return vision
+
+
+
+def get_vision_null(sig_val, n_perm=1000):
+
+
+    return vision_null
+
+
+
+
+
+    
