@@ -1,6 +1,7 @@
 import numpy as np
 import random
 from scipy.linalg import svd
+from scipy.spatial.distance import pdist, squareform
 
 def get_leading_edge(i2sig, hit_indicator, ES, peak):
     if ES > 0:
@@ -202,14 +203,13 @@ def get_plage_null(sig_val, n_perm=1000):
         Null distribution of activity scores, shape (n_perm, n_samples)
     """
     n_sig, n_sample = sig_val.shape
-    null_scores = np.zeros((n_perm, n_sample))
+    plage_null = np.zeros((n_perm, n_sample))
     
-    for i in range(n_perm):
-        
-        perm_indices = np.array([np.random.permutation(n_sig) for _ in range(n_sample)])
-        perm_sig_val = np.array([sig_val[idx, j] for j, idx in enumerate(perm_indices.T)]).T
-        null_scores[i, :] = get_plage(perm_sig_val)
-    return null_scores
+    for i in range(n_perm):  
+        perm_inx = np.array([np.random.permutation(n_sig) for _ in range(n_sample)])
+        perm_sig_val = np.array([sig_val[idx, j] for j, idx in enumerate(perm_inx.T)]).T
+        plage_null[i, :] = get_plage(perm_sig_val)
+    return plage_null
 
 
 
@@ -229,9 +229,10 @@ def get_z_score_null(sig_val, n_perm=1000):
 
 
     for i in range(n_perm):
-    
-    
-
+        perm_inx = np.array([np.random.permutation(n_sig) for _ in range(n_sample)])
+        perm_sig_val = np.array([sig_val[idx, j] for j, idx in enumerate(perm_inx.T)]).T
+        z_score_null[i, :] = get_z_score(perm_sig_val)
+        
     return z_score_null
 
 
@@ -243,19 +244,29 @@ def get_vision(sig_val, overlap_ratios, lib_sigs, sig_sep: str = ','):
     """
     pos_genes = []
     neg_genes = []
-    for 
+    for i in range(sig_val.shape[0]):
+        sig_names = set(sig_val[i, 0].split(sig_sep))
+        if len(set(lib_sigs).intersection(sig_names)) > 0:
+            pos_genes.append(i)
+        else:
+            neg_genes.append(i)
+    vision = (np.sum(sig_val[pos_genes], axis=0) - np.sum(sig_val[neg_genes], axis=0)) / (len(pos_genes) + len(neg_genes))
     
-    vision = (np.sum(sig_val[pos_idx],axis=0) - np.sum(sig_val[neg_idx],axis=0)) / (np.sum(pos_idx) - np.sum(neg_idx))
-    cell_means = np.mean(sig_val,axis=0)
-    cell_vars = np.var(sig_val,axis=0)
-    expected_means = ((len(pos_idx)-len(neg_idx)) / (np.sum(pos_idx) - np.sum(neg_idx))) * cell_means
-
     return vision
 
 
 
 def get_vision_null(sig_val, n_perm=1000):
 
+    """
+    Generate null distribution for VISION.
+    """
+    n_sig, n_sample = sig_val.shape
+    vision_null = np.zeros((n_perm, n_sample))
+    for i in range(n_perm):
+        perm_inx = np.array([np.random.permutation(n_sig) for _ in range(n_sample)])
+        perm_sig_val = np.array([sig_val[idx, j] for j, idx in enumerate(perm_inx.T)]).T
+        vision_null[i, :] = get_vision(perm_sig_val)
 
     return vision_null
 
