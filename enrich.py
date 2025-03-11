@@ -79,7 +79,8 @@ def get_AUC(obs_rs):
     # running_sum  n_sig x n_sample
     n_sig, n_sample = obs_rs.shape
     AUCs = np.zeros(n_sample)
-    
+    #print(obs_rs.dtype)
+    obs_rs = obs_rs.astype(float)
     for i in range(n_sample):
         data = obs_rs[:, i]
         valid_mask = ~np.isnan(data)
@@ -160,22 +161,6 @@ def get_ES_ESD_null(null_rs):
 def get_plage(sig_val):
     """
     Perform PLAGE (Pathway Level Analysis of Gene Expression) analysis.
-    
-    Parameters:
-    -----------
-    sig_name : np.ndarray
-        Gene names matrix, shape (n_genes, n_samples)
-    sig_val : np.ndarray
-        Expression value matrix, shape (n_genes, n_samples)
-    library : dict
-        Dictionary of pathway/gene set definitions
-    sig_sep : str, optional
-        Separator for multiple gene names in sig_name
-        
-    Returns:
-    --------
-    pd.DataFrame
-        Results containing pathway activity scores and statistics
     """
     sort_indices = np.argsort(sig_val, axis=0)[::-1, :]
     sorted_sig = np.take_along_axis(sig_val, sort_indices, axis=0)
@@ -187,20 +172,6 @@ def get_plage(sig_val):
 def get_plage_null(sig_val, n_perm=1000):
     """
     Generate null distribution for PLAGE activity scores through permutation.
-    
-    Parameters:
-    -----------
-    sig_val : np.ndarray
-        Expression value matrix, shape (n_genes, n_samples)
-    overlap_ratios : np.ndarray
-        Overlap ratios matrix, shape (n_genes, n_samples)
-    n_perm : int
-        Number of permutations
-        
-    Returns:
-    --------
-    np.ndarray
-        Null distribution of activity scores, shape (n_perm, n_samples)
     """
     n_sig, n_sample = sig_val.shape
     plage_null = np.zeros((n_perm, n_sample))
@@ -226,13 +197,11 @@ def get_z_score_null(sig_val, n_perm=1000):
 
     n_sig, n_sample = sig_val.shape
     z_score_null = np.zeros((n_perm, n_sample))
-
-
     for i in range(n_perm):
         perm_inx = np.array([np.random.permutation(n_sig) for _ in range(n_sample)])
         perm_sig_val = np.array([sig_val[idx, j] for j, idx in enumerate(perm_inx.T)]).T
-        z_score_null[i, :] = get_z_score(perm_sig_val)
-        
+        z_score_null[i, :] = get_z_score(perm_sig_val)     
+    
     return z_score_null
 
 
