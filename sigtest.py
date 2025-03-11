@@ -14,7 +14,7 @@ from statsmodels.stats.multitest import multipletests
 import seaborn as sns
 
 
-from src import enrich
+import enrich
 
 
 from mpmath import mp, exp, log
