@@ -4,8 +4,8 @@ from matplotlib import pyplot as plt
 import matplotlib as mpl
 from scipy.stats import gamma
 from matplotlib.patches import Rectangle
-from src import enrich
-from src import sigtest
+from GREA import enrich
+from GREA import sigtest
 import seaborn as sns
 from scipy.cluster import hierarchy
 from scipy.spatial.distance import pdist
@@ -472,7 +472,8 @@ def top_table(sig_name, sig_val, library, result, n=10, center=True, interactive
         
 def plot_box(ax, data, ranks, color, label, min_p_value_line=None, line_label=None):
     # 绘制boxplot
-    box = ax.boxplot(data.T.iloc[:, ranks], showfliers=False, patch_artist=True,
+    data = pd.DataFrame(data)  
+    box = ax.boxplot(data.T.loc[:, ranks], showfliers=False, patch_artist=True,
                      boxprops=dict(facecolor=color, color=color),
                      capprops=dict(color=color),
                      whiskerprops=dict(color=color),

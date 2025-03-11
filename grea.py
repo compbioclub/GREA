@@ -3,15 +3,16 @@ import random
 from tqdm import tqdm
 from copy import deepcopy
 
-from src import enrich
-from src import genesig
-from src import sigtest
+import enrich
+import genesig
+import sigtest
 
 class GREA(object):
 
     def __init__(self, seed=0,
                  perm_n = 1000, processes = 4,
                  verbose= True,
+                 symmetric=False,
                  ) -> None:
         self.verbose = verbose
         self.processes = processes
