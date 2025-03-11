@@ -86,7 +86,7 @@ def get_AUC(obs_rs):
         
         if np.any(valid_mask):
             clean_data = data[valid_mask]
-            AUCs[i] = (clean_data * (1.0 / n_sig)).sum()
+            AUCs[i] =  (np.sum(clean_data) - 0.5) / n_sig    
         else:
             AUCs[i] = np.nan
             
