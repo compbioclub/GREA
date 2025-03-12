@@ -1,12 +1,12 @@
 import pandas as pd
 import numpy as np
-from benchmarking import benchmark_parallel
-import library
+from src.benchmarking import benchmark_parallel
+import src.library as library
 
 
 if __name__ == '__main__':
-    library = library.read_gmt("DATA/Enrichr.KEGG_2021_Human.gmt")
-    signature = pd.read_csv("DATA/ageing_muscle_gtex.tsv")
+    library = library.read_gmt("data/Enrichr.KEGG_2021_Human.gmt")
+    signature = pd.read_csv("data/ageing_muscle_gtex.tsv")
     
 
 
@@ -17,7 +17,7 @@ if __name__ == '__main__':
         sub_library[key] = library[key]
 
 
-    res = benchmark_parallel(signature, sub_library,n=2)
+    res = benchmark_parallel(signature, sub_library,n=4)
 
 
     escores_data = {}

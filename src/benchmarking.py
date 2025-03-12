@@ -2,7 +2,7 @@ import blitzgsea as blitz
 import time
 import pandas as pd
 import numpy as np
-from grea import GREA
+from src.grea import GREA
 from scipy.stats import pearsonr
 from scipy.stats import spearmanr
 import multiprocessing
@@ -94,6 +94,8 @@ def benchmark_parallel(signature, library, methods=None, n=11, base_perm=250,):
         for method, res_info, time_list in results_list:
             method_results[method] = res_info
             times[method].append(time_list)
+
+        print(method_results)
         
         # Find pathways that overlap across all methods
         if method_results:
