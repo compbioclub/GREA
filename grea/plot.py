@@ -4,8 +4,8 @@ from matplotlib import pyplot as plt
 import matplotlib as mpl
 from scipy.stats import gamma
 from matplotlib.patches import Rectangle
-from GREA import enrich
-from GREA import sigtest
+from grea.enrich import enrich
+from grea.enrich import sigtest
 import seaborn as sns
 from scipy.cluster import hierarchy
 from scipy.spatial.distance import pdist
