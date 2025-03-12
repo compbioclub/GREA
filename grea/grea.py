@@ -5,7 +5,7 @@ from copy import deepcopy
 
 import grea.enrich as enrich
 import grea.genesig as genesig
-import sigtest
+import grea.sigtest as sigtest
 
 class GREA(object):
 
