@@ -3,12 +3,28 @@ import random
 from scipy.linalg import svd
 from scipy.spatial.distance import pdist, squareform
 
+# def get_leading_edge(i2sig, hit_indicator, ES, peak):
+#     if ES > 0:
+#         le_genes = [i2sig[i] for i, x in enumerate(hit_indicator[:peak+1]) if x > 0]
+#     else:
+#         le_genes = [i2sig[i] for i, x in enumerate(hit_indicator[-peak:]) if x > 0]
+#     return le_genes
+
+
 def get_leading_edge(i2sig, hit_indicator, ES, peak):
-    if ES > 0:
-        le_genes = [i2sig[i] for i, x in enumerate(hit_indicator[:peak+1]) if x > 0]
-    else:
-        le_genes = [i2sig[i] for i, x in enumerate(hit_indicator[-peak:]) if x > 0]
-    return le_genes
+    i2sig = i2sig.flatten() 
+    leading_edge_genes = []
+    for i in range(len(ES)):  
+        if ES[i] > 0:
+            le_indices = np.where(hit_indicator[:peak[i], i] > 0)[0]  
+        else:
+            le_indices = np.where(hit_indicator[peak[i]:, i] > 0)[0] + peak[i]  
+
+        le_genes = [str(i2sig[j]) for j in le_indices]  
+        leading_edge_genes.append(le_genes)
+        
+    return [list(le) for le in leading_edge_genes]  
+
 
 def get_overlap(sig_name, lib_sigs, sig_sep):
     n_sample = sig_name.shape[1]
