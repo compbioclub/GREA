@@ -6,8 +6,8 @@ setup(
     packages=find_packages(),
     install_requires=[],
     description="...",
-    author="Your Name",
-    author_email="your_email@example.com",
+    author="",
+    author_email="",
     url="https://github.com/compbioclub/GREA",
     license="MIT"
 )

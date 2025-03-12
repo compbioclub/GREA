@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
-from src.benchmarking import benchmark_parallel
-import src.library as library
+from grea.benchmarking import benchmark_parallel
+import grea.library as library
 
 
 if __name__ == '__main__':

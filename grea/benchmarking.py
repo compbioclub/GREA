@@ -2,7 +2,7 @@ import blitzgsea as blitz
 import time
 import pandas as pd
 import numpy as np
-from src.grea import GREA
+from grea.grea import GREA
 from scipy.stats import pearsonr
 from scipy.stats import spearmanr
 import multiprocessing

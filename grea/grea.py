@@ -3,8 +3,8 @@ import random
 from tqdm import tqdm
 from copy import deepcopy
 
-import src.enrich as enrich
-import src.genesig as genesig
+import grea.enrich as enrich
+import grea.genesig as genesig
 import sigtest
 
 class GREA(object):
