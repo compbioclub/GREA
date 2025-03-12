@@ -1,6 +1,6 @@
 from .grea import (
     GREA
 )
-from plot import (
+from .plot import (
     running_sum
 )
