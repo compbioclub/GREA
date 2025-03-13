@@ -4,3 +4,5 @@ blitzgsea/
 test/
 build/
 grea.egg-info
+DATA/
+result/
