@@ -194,7 +194,7 @@ def sig_enrich(sig_name, sig_val, library,
 
         overlap_ratios, n_hits = enrich.get_overlap(sig_name, lib_sigs, sig_sep)
     
-        obs_rs, null_rs = enrich.get_running_sum(sig_val, overlap_ratios, method=method, n_perm=n_perm)
+        obs_rs, null_rs, sort_indices = enrich.get_running_sum(sig_val, overlap_ratios, method=method, n_perm=n_perm)
         if n_hits.shape[0] == 1: # for single sig_name
             n_hits = np.tile(np.array(n_hits), n_sample)
         res = pd.DataFrame({
@@ -203,13 +203,17 @@ def sig_enrich(sig_name, sig_val, library,
             'n_gene': [n_lib_sig]*n_sample, 
             'n_hit': n_hits,
         }) 
+
+        i2sig = np.take_along_axis(sig_name, sort_indices, axis=0)
+
+        i2overlap_ratios = np.take_along_axis(overlap_ratios, sort_indices, axis=0)
         
         if method == 'KS' and cal_method == 'ES':
-            KS_res = sig_enrich_KS(obs_rs, null_rs,sig_name,overlap_ratios,prob_method=prob_method,cal_method=cal_method)
+            KS_res = sig_enrich_KS(obs_rs, null_rs,i2sig,i2overlap_ratios,prob_method=prob_method,cal_method=cal_method)
             res = pd.concat([res, KS_res], axis=1)
             res=res.sort_values("es_pval", key=abs, ascending=True)
         elif method == 'KS' and cal_method == 'ESD':
-            KS_res = sig_enrich_KS(obs_rs, null_rs, sig_name,overlap_ratios,prob_method=prob_method,cal_method=cal_method)
+            KS_res = sig_enrich_KS(obs_rs, null_rs, i2sig,i2overlap_ratios,prob_method=prob_method,cal_method=cal_method)
             res = pd.concat([res, KS_res], axis=1)
             res=res.sort_values("esd_pval", key=abs, ascending=True)
         
@@ -320,7 +324,6 @@ def sig_enrich_KS(obs_rs, null_rs, i2sig, hit_indicator, prob_method='signgamma'
             nes[i], _ = pred_signgamma_prob_aux(es[i], null_es[:, i], symmetric=True, accuracy=40, deep_accuracy=50)
             nesd[i], _ = pred_signgamma_prob_aux(esd[i], null_esd[:, i], symmetric=True, accuracy=40, deep_accuracy=50)
 
-            
     le_ns = [len(le) for le in le_genes_list]
     le_gene_str = [','.join(le) for le in le_genes_list]
 
