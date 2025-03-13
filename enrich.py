@@ -12,15 +12,14 @@ from scipy.spatial.distance import pdist, squareform
 
 
 def get_leading_edge(i2sig, hit_indicator, ES, peak):
-    i2sig = i2sig.flatten() 
     leading_edge_genes = []
     for i in range(len(ES)):  
         if ES[i] > 0:
-            le_indices = np.where(hit_indicator[:peak[i], i] > 0)[0]  
+            le_indices = np.where(hit_indicator[:peak[i]+1, i] > 0)[0] 
         else:
-            le_indices = np.where(hit_indicator[peak[i]:, i] > 0)[0] + peak[i]  
+            le_indices = np.where(hit_indicator[peak[i]:, i] > 0)[0] 
 
-        le_genes = [str(i2sig[j]) for j in le_indices]  
+        le_genes = [str(i2sig[j, i]) for j in le_indices]  
         leading_edge_genes.append(le_genes)
         
     return [list(le) for le in leading_edge_genes]  
@@ -53,7 +52,7 @@ def get_running_sum(sig_val, overlap_ratios, method='KS', n_perm=1000):
     for i in range(n_perm):
         rs = get_running_sum_null(sorted_abs, overlap_ratios, sort_indices, method=method)
         null_rs[i, :, :] = rs
-    return obs_rs, null_rs
+    return obs_rs, null_rs , sort_indices
 
 
 def get_running_sum_null(sorted_abs, overlap_ratios, sort_indices, method='KS'):
