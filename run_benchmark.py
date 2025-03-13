@@ -21,8 +21,8 @@ def run_bench(signature, library,rep_n, output_dir='result',perm_list=[250,500,7
         os.makedirs(output_dir)
         print(f"Created directory: {output_dir}")
 
-    res = benchmark_parallel(signature, library,rep_n=rep_n,perm_list=perm_list)
+    res = benchmark_parallel(signature, library, rep_n=rep_n,perm_list=perm_list)
 
     return res
 if __name__ == '__main__':
-    run_bench(signature, sub_library,3, output_dir='result')
+    run_bench(signature, sub_library, rep_n=3, output_dir='result')
