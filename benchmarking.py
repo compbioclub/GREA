@@ -76,7 +76,7 @@ def run_method(method, signature, library, i, perm,):
     elif method == 'grea_RC_perm_AUC':
         obj = GREA(processes=1, perm_n=perm, seed=perm*i, symmetric=True, verbose=False)
         res3_auc_1 = obj.fit(sig_name, sig_val, library, method='RC')
-        res3_auc_1 = res3_auc_2.set_index('Term')
+        res3_auc_1 = res3_auc_1.set_index('Term')
         res3_auc_1["Method"] = method
         res3_auc_1['Perm_num'] = perm
         return method, res3_auc_1
