@@ -29,6 +29,7 @@ def run_method(method, signature, library, i, perm,):
     if method == 'blitz':
         res1 = blitz.gsea(signature, library, permutations=perm, processes=1, seed=perm*i, signature_cache=False)
         res1["Method"] = method 
+        res1['Perm_num'] = perm
         return method, res1
     
     elif method == 'gseapy':
@@ -37,33 +38,63 @@ def run_method(method, signature, library, i, perm,):
         res2 = chopped_gsea(sig, library, processes=1, permutation_num=perm, seed=perm*i, max_lib_size=25)
         res2 = res2.set_index('Term')
         res2["Method"] = method 
+        res2['Perm_num'] = perm
         return method, res2
     
-    elif method == 'grea_es':
+    elif method == 'grea_KS_signperm_es':
         obj = GREA(processes=1, perm_n=perm, seed=perm*i, symmetric=True, verbose=False)
-        res3_es = obj.fit(sig_name, sig_val, library)
-        res3_es = res3_es.set_index('Term')
-        res3_es["Method"] = method 
-        return method, res3_es
+        res3_es_1 = obj.fit(sig_name, sig_val, library, prob_method='signperm')
+        res3_es_1 = res3_es_1.set_index('Term')
+        res3_es_1["Method"] = method 
+        res3_es_1['Perm_num'] = perm
+        return method, res3_es_1
     
-    elif method == 'grea_esd':
+    elif method == 'grea_KS_signgamma_es':
         obj = GREA(processes=1, perm_n=perm, seed=perm*i, symmetric=True, verbose=False)
-        res3_esd = obj.fit(sig_name, sig_val, library, cal_method='ESD')
-        res3_esd = res3_esd.set_index('Term')
-        res3_esd["Method"] = method
-        return method, res3_esd
+        res3_es_2 = obj.fit(sig_name, sig_val, library, prob_method='signgamma')
+        res3_es_2 = res3_es_2.set_index('Term')
+        res3_es_2["Method"] = method
+        res3_es_2['Perm_num'] = perm
+        return method, res3_es_2
     
-    elif method == 'grea_auc':
+    elif method == 'grea_KS_signperm_esd':
         obj = GREA(processes=1, perm_n=perm, seed=perm*i, symmetric=True, verbose=False)
-        res3_auc = obj.fit(sig_name, sig_val, library, method='RC')
-        res3_auc = res3_auc.set_index('Term')
-        res3_auc["Method"] = method
-        return method, res3_auc
+        res3_esd_1 = obj.fit(sig_name, sig_val, library, cal_method='ESD', prob_method='signperm')
+        res3_esd_1 = res3_esd_1.set_index('Term')
+        res3_esd_1["Method"] = method
+        res3_esd_1['Perm_num'] = perm
+        return method, res3_esd_1
+    
+    elif method == 'grea_KS_signgamma_esd':
+        obj = GREA(processes=1, perm_n=perm, seed=perm*i, symmetric=True, verbose=False)
+        res3_esd_2 = obj.fit(sig_name, sig_val, library, cal_method='ESD', prob_method='signgamma')
+        res3_esd_2 = res3_esd_2.set_index('Term')
+        res3_esd_2["Method"] = method
+        res3_esd_2['Perm_num'] = perm
+        return method, res3_esd_2
+    
+    elif method == 'grea_RC_perm_AUC':
+        obj = GREA(processes=1, perm_n=perm, seed=perm*i, symmetric=True, verbose=False)
+        res3_auc_1 = obj.fit(sig_name, sig_val, library, method='RC')
+        res3_auc_1 = res3_auc_2.set_index('Term')
+        res3_auc_1["Method"] = method
+        res3_auc_1['Perm_num'] = perm
+        return method, res3_auc_1
+    
+    elif method == 'grea_RC_gamma_auc':
+        obj = GREA(processes=1, perm_n=perm, seed=perm*i, symmetric=True, verbose=False)
+        res3_auc_2 = obj.fit(sig_name, sig_val, library, method='RC',prob_method='gamma')
+        res3_auc_2 = res3_auc_2.set_index('Term')
+        res3_auc_2["Method"] = method
+        res3_auc_2['Perm_num'] = perm
+        return method, res3_auc_2
+    
 
 
 
-def benchmark_parallel(signature, library, methods=['blitz', 'gseapy', 'grea_es', 'grea_esd', 'grea_auc'], rep_n=11, perm_list=[250,500,750,1000,1250,1500,1750,2000,2250,2500,],output_dir='result',):
-    
+def benchmark_parallel(signature, library, methods=['blitz', 'gseapy', 'grea_KS_signperm_es', 'grea_KS_signgamma_es', 'grea_KS_signperm_esd', 'grea_KS_signgamma_esd', 'grea_RC_perm_AUC', 'grea_RC_gamma_auc'], rep_n=11, perm_list=[250,500,750,1000,1250,1500,1750,2000,2250,2500,],output_dir='result',):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     for i in range(1, rep_n+1):
 
         print(f"Outer loop iteration: {i+1}")
