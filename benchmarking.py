@@ -1,47 +1,13 @@
 import blitzgsea as blitz
-import time
 import pandas as pd
 import numpy as np
 from grea import GREA
-from scipy.stats import pearsonr
-from scipy.stats import spearmanr
 import multiprocessing
-import time
-from tqdm import tqdm 
 import gseapy
 import os
-import scanpy as sc
+from dataprocess import preprocess_signature
 
-# def preprocess_signature(signature, group =None, FC = True,method = 't-test',key_added = 'ttest_symptom'):
 
-#     if FC and group is not None:
-#         #Adata
-#         adata = sc.AnnData(X=signature.T)
-#         adata.obs_names = signature.columns
-#         adata.var_names = signature.index
-#         #group
-#         adata.obs['symptom'] = pd.Categorical([group.get(x, 'Unknown') for x in adata.obs_names])
-#         #preprocessing
-#         sc.pp.filter_genes(adata, min_cells=3)
-#         adata.layers["counts"] = adata.X.copy()
-#         sc.pp.normalize_total(adata, target_sum=1e4)
-#         sc.pp.log1p(adata)
-#         adata.layers["log1p"] = adata.X.copy()
-#         #DEG computation
-#         sc.tl.rank_genes_groups(
-#             adata, 
-#             groupby='symptom', 
-#             groups=['Symptomatic'], 
-#             reference='Asymptomatic',
-#             method=method, 
-#             layer='log1p',
-#             key_added= key_added  
-#         )
-#         #result
-#         res = sc.get.rank_genes_groups_df(adata, group='Symptomatic', key=key_added)
-#         signature = res[['names','scores']]
-#     else:
-#         return signature
 
 def chopped_gsea(rnk, gene_sets, processes, permutation_num=100, max_lib_size=100, outdir='test/prerank_report_kegg', format='png', seed=1):
     library_keys = list(gene_sets.keys())
@@ -56,8 +22,8 @@ def chopped_gsea(rnk, gene_sets, processes, permutation_num=100, max_lib_size=10
         results.append(pre_res.res2d)
     return pd.concat(results)
 
-def run_method(method, signature, library, i, perm,):
-    # signature = preprocess_signature(signature,group)
+def run_method(method, signature, library, group, i, perm,):
+    signature = preprocess_signature(signature,group)
     signature.columns = ["i","v"]
     sig_name = signature.values[:, 0][:, np.newaxis]
     sig_val = signature.values[:, 1][:, np.newaxis]
@@ -97,7 +63,7 @@ def run_method(method, signature, library, i, perm,):
 
 
 
-def benchmark_parallel(signature, library, methods=['blitz', 'gseapy', 'grea_es', 'grea_esd', 'grea_auc'], rep_n=11, perm_list=[250,500,750,1000,1250,1500,1750,2000,2250,2500,],output_dir='result',):
+def benchmark_parallel(signature, library, group, methods=['blitz', 'gseapy', 'grea_es', 'grea_esd', 'grea_auc'], rep_n=11, perm_list=[250,500,750,1000,1250,1500,1750,2000,2250,2500,],output_dir='result',):
     
     for i in range(1, rep_n):
 
@@ -108,7 +74,7 @@ def benchmark_parallel(signature, library, methods=['blitz', 'gseapy', 'grea_es'
         for perm in perm_list:
             print(f"perm = {perm}")
             for method in methods:
-                tasks.append((method, signature, library, i, perm))
+                tasks.append((method, signature, library, group, i, perm))
 
         with multiprocessing.Pool(processes=len(methods)) as pool:
             results_list = pool.starmap(run_method, tasks)
