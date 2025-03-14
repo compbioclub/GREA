@@ -255,7 +255,8 @@ def pred_perm_prob(obs, nulls):
     Returns:
     np.ndarray: Probabilities for each observed value, shape (n,).
     """
-    return (obs <= nulls).sum(axis=0)/nulls.shape[0]          
+    return (obs <= nulls).sum(axis=0)/nulls.shape[0]         
+
 
 def pred_signperm_prob(obs, nulls):
     """
