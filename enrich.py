@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import random
 from scipy.linalg import svd
@@ -41,18 +42,18 @@ def get_overlap(sig_name, lib_sigs, sig_sep):
     return overlap_ratios, n_hits
 
 
-def get_running_sum(sig_val, overlap_ratios, method='KS', n_perm=1000):
+def get_running_sum(sig_val, overlap_ratios, method='KS'):
     sort_indices = np.argsort(sig_val, axis=0)[::-1, :]
     sorted_sig = np.take_along_axis(sig_val, sort_indices, axis=0)
     sorted_abs = np.abs(sorted_sig)   
     obs_rs = get_running_sum_aux(sorted_abs, overlap_ratios, sort_indices, method=method)
 
-    null_rs = np.zeros((n_perm, *sig_val.shape))  
-    # n_perm x n_sig x n_sample 
-    for i in range(n_perm):
-        rs = get_running_sum_null(sorted_abs, overlap_ratios, sort_indices, method=method)
-        null_rs[i, :, :] = rs
-    return obs_rs, null_rs , sort_indices
+    # null_rs = np.zeros((n_perm, *sig_val.shape))  
+    # # n_perm x n_sig x n_sample 
+    # for i in range(n_perm):
+    #     rs = get_running_sum_null(sorted_abs, overlap_ratios, sort_indices, method=method)
+    #     null_rs[i, :, :] = rs
+    return obs_rs, sort_indices
 
 
 def get_running_sum_null(sorted_abs, overlap_ratios, sort_indices, method='KS'):
@@ -108,28 +109,43 @@ def get_AUC(obs_rs):
             
     return AUCs
 
-def get_AUC_null(null_rs):
-    """
-    Compute the area under the curve (AUC) for a 3D array (null_rs) with size (n_perm, n_sig, n_sample).
+# def get_AUC_null(null_rs):
+#     """
+#     Compute the area under the curve (AUC) for a 3D array (null_rs) with size (n_perm, n_sig, n_sample).
 
-    Parameters:
-        null_rs (np.ndarray): Array of size (n_perm, n_sig, n_sample).
+#     Parameters:
+#         null_rs (np.ndarray): Array of size (n_perm, n_sig, n_sample).
 
-    Returns:
-        AUCs (np.ndarray): Array of size (n_perm, n_sample) with the computed AUCs.
-    """
-    null_rs = null_rs.copy()
-    n_perm, n_sig, n_sample = null_rs.shape   
+#     Returns:
+#         AUCs (np.ndarray): Array of size (n_perm, n_sample) with the computed AUCs.
+#     """
+#     null_rs = null_rs.copy()
+#     n_perm, n_sig, n_sample = null_rs.shape   
+#     AUCs = np.zeros((n_perm, n_sample))
+#     for i in range(n_sample):    
+#         sample_data = null_rs[:, :, i]  # shape: (n_perm, n_sig)
+#         valid_mask = ~np.isnan(sample_data).any(axis=1)
+#         if valid_mask.any():
+#             AUCs[valid_mask, i] = np.sum(sample_data[valid_mask] * (1.0 / n_sig), axis=1)
+#         else:
+#             AUCs[:, i] = np.nan
+#     return AUCs
+
+def get_AUC_null(sorted_abs, overlap_ratios,sort_indices, n_perm=1000,save_permutation=False):
+    n_sig, n_sample = sorted_abs.shape
+
     AUCs = np.zeros((n_perm, n_sample))
-    for i in range(n_sample):    
-        sample_data = null_rs[:, :, i]  # shape: (n_perm, n_sig)
-        valid_mask = ~np.isnan(sample_data).any(axis=1)
-        if valid_mask.any():
-            AUCs[valid_mask, i] = np.sum(sample_data[valid_mask] * (1.0 / n_sig), axis=1)
-        else:
-            AUCs[:, i] = np.nan
-    return AUCs
 
+    for i in range(n_perm):
+        rs = get_running_sum_null(sorted_abs, overlap_ratios, sort_indices, method="KS")
+        if save_permutation:
+            print(f"Saved permutation {i} running sum to permutation_test/permutation_{i}_running_sum.npy")
+            if not os.path.exists("permutation_test"):
+                os.makedirs("permutation_test")       
+            np.save(os.path.join("permutation_test", f"permutation_{i}_running_sum.npy"), rs)
+        AUCs[i, :] = get_AUC(rs)
+
+    return AUCs
 
 def get_ES_ESD(obs_rs):
     # Find the maximum absolute value (enrichment score, ES) and its index (peak) for each column
@@ -149,27 +165,50 @@ def get_ES_ESD(obs_rs):
     return ES, ESD, peak
 
 
-def get_ES_ESD_null(null_rs):
-    """
-    Compute ES, ESD, and peak for a 3D array (null_rs) with size (n_perm, n_sig, n_sample).
+# def get_ES_ESD_null(null_rs):
+#     """
+#     Compute ES, ESD, and peak for a 3D array (null_rs) with size (n_perm, n_sig, n_sample).
 
-    Parameters:
-        null_rs (np.ndarray): Array of size (n_perm, n_sig, n_sample).
+#     Parameters:
+#         null_rs (np.ndarray): Array of size (n_perm, n_sig, n_sample).
 
-    Returns:
-        ES (np.ndarray): Array of size (n_perm, n_sample) with the enrichment scores.
-        ESD (np.ndarray): Array of size (n_perm, n_sample) with the enrichment score differences.
-        peak (np.ndarray): Array of size (n_perm, n_sample) with the peak indices.
-    """
-    # Find the maximum absolute value (ES) and its index (peak) for each n_perm and n_sample
-    peak = np.argmax(np.abs(null_rs), axis=1)
-    ES = np.take_along_axis(null_rs, peak[:, np.newaxis, :], axis=1).squeeze(axis=1)
-    # Find the maximum positive value for each n_perm and n_sample
-    max_positive = np.max(np.where(null_rs > 0, null_rs, 0), axis=1)
-    # Find the maximum negative value for each n_perm and n_sample
-    max_negative = np.min(np.where(null_rs < 0, null_rs, 0), axis=1)
-    # Calculate the enrichment score difference (ESD) for each n_perm and n_sample
-    ESD = max_positive + max_negative
+#     Returns:
+#         ES (np.ndarray): Array of size (n_perm, n_sample) with the enrichment scores.
+#         ESD (np.ndarray): Array of size (n_perm, n_sample) with the enrichment score differences.
+#         peak (np.ndarray): Array of size (n_perm, n_sample) with the peak indices.
+#     """
+#     # Find the maximum absolute value (ES) and its index (peak) for each n_perm and n_sample
+#     peak = np.argmax(np.abs(null_rs), axis=1)
+#     ES = np.take_along_axis(null_rs, peak[:, np.newaxis, :], axis=1).squeeze(axis=1)
+#     # Find the maximum positive value for each n_perm and n_sample
+#     max_positive = np.max(np.where(null_rs > 0, null_rs, 0), axis=1)
+#     # Find the maximum negative value for each n_perm and n_sample
+#     max_negative = np.min(np.where(null_rs < 0, null_rs, 0), axis=1)
+#     # Calculate the enrichment score difference (ESD) for each n_perm and n_sample
+#     ESD = max_positive + max_negative
+#     return ES, ESD, peak
+
+def get_ES_ESD_null(sorted_abs, overlap_ratios,sort_indices, n_perm=1000,save_permutation=False):
+
+    n_sig, n_sample = sorted_abs.shape
+
+    ES = np.zeros((n_perm, n_sample))
+    ESD = np.zeros((n_perm, n_sample))
+    peek = np.zeros((n_perm, n_sample))
+    
+    for i in range(n_perm):
+        rs = get_running_sum_null(sorted_abs, overlap_ratios, sort_indices, method="KS")
+        if save_permutation:
+            print(f"Saved permutation {i} running sum to permutation_test/permutation_{i}_running_sum.npy")
+            if not os.path.exists("permutation_test"):
+                os.makedirs("permutation_test")       
+            np.save(os.path.join("permutation_test", f"permutation_{i}_running_sum.npy"), rs)
+        es, esd, peak = get_ES_ESD(rs)
+        ES[i, :] = es
+        ESD[i, :] = esd
+        peek[i, :] = peak
+
+
     return ES, ESD, peak
 
 
