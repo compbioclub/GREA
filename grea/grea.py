@@ -3,9 +3,9 @@ import random
 from tqdm import tqdm
 from copy import deepcopy
 
-import enrich
-import genesig
-import sigtest
+import grea.enrich
+import grea.genesig as genesig
+import grea.sigtest as sigtest
 
 class GREA(object):
 

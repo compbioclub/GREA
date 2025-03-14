@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from benchmarking import benchmark_parallel
-import library
+import grea.library as library
 import os
 
 
