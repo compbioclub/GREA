@@ -3,7 +3,7 @@ import random
 from tqdm import tqdm
 from copy import deepcopy
 
-import grea.enrich
+import grea.enrich as enrich
 import grea.genesig as genesig
 import grea.sigtest as sigtest
 
