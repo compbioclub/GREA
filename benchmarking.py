@@ -22,8 +22,7 @@ def chopped_gsea(rnk, gene_sets, processes, permutation_num=100, max_lib_size=10
         results.append(pre_res.res2d)
     return pd.concat(results)
 
-def run_method(method, signature, library, group, i, perm,):
-    signature = preprocess_signature(signature,group)
+def run_method(method, signature, library, i, perm,):
     signature.columns = ["i","v"]
     sig_name = signature.values[:, 0][:, np.newaxis]
     sig_val = signature.values[:, 1][:, np.newaxis]
@@ -63,18 +62,18 @@ def run_method(method, signature, library, group, i, perm,):
 
 
 
-def benchmark_parallel(signature, library, group, methods=['blitz', 'gseapy', 'grea_es', 'grea_esd', 'grea_auc'], rep_n=11, perm_list=[250,500,750,1000,1250,1500,1750,2000,2250,2500,],output_dir='result',):
+def benchmark_parallel(signature, library, methods=['blitz', 'gseapy', 'grea_es', 'grea_esd', 'grea_auc'], rep_n=11, perm_list=[250,500,750,1000,1250,1500,1750,2000,2250,2500,],output_dir='result',):
     
-    for i in range(1, rep_n):
+    for i in range(1, rep_n+1):
 
-        print(f"Outer loop iteration: {i}")
+        print(f"Outer loop iteration: {i+1}")
         method_results = {method: [] for method in methods}
         # 
         tasks = []
         for perm in perm_list:
             print(f"perm = {perm}")
             for method in methods:
-                tasks.append((method, signature, library, group, i, perm))
+                tasks.append((method, signature, library, i, perm))
 
         with multiprocessing.Pool(processes=len(methods)) as pool:
             results_list = pool.starmap(run_method, tasks)
