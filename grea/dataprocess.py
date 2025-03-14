@@ -1,7 +1,11 @@
 import pandas as pd
 import scanpy as sc
+import os
+import re
 
-def preprocess_signature(signature, group = None, FC = True, stat = 't-test',key_added = 'ttest_symptom'):
+def preprocess_signature(signature, group = None, FC = True, stat = 't-test',key_added = 'ttest_symptom',output_dir='Signature_divided'):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     if not FC and group is None:
         return signature
@@ -42,6 +46,13 @@ def preprocess_signature(signature, group = None, FC = True, stat = 't-test',key
 
         # Concatenate all group results into a single DataFrame
         signature = pd.concat(all_results, ignore_index=True)
-        return signature
+        grouped_signature = {group: signature[signature['group'] == group] for group in signature['group'].unique()}
+        for group, df in grouped_signature.items():
+            df = df.drop(columns=['group'])
+            safe_group = re.sub(r'[\/:*?"<>|]', '_', group)
+            output_file = f"{output_dir}/signature_{safe_group}.csv"
+            df.to_csv(output_file, index=False)
+        return grouped_signature
     else:
+
         return signature

@@ -17,3 +17,9 @@ from .library import (
 from .dataprocess import (
     preprocess_signature
 )
+
+from .HVGs import (
+    HVGs,
+    entropy2gene,
+    entropy_HVGs
+)

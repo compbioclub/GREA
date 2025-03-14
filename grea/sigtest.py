@@ -12,6 +12,8 @@ from matplotlib import pyplot as plt
 from mpmath import mp, mpf
 from statsmodels.stats.multitest import multipletests
 import seaborn as sns
+from multiprocessing import Pool
+
 
 
 import grea.enrich as enrich
@@ -174,6 +176,56 @@ def pred_gamma_prob_aux(obs, nulls, accuracy=40, deep_accuracy=50):
     return prob
 
 
+def process_library_key(lib_key, library, sig_name, sig_val, sig_sep, method, prob_method, cal_method, n_perm, save_permutation, verbose):
+    
+    n_sample = sig_val.shape[1]
+    
+    lib_sigs = library[lib_key]
+    n_lib_sig = len(lib_sigs)
+
+    overlap_ratios, n_hits = enrich.get_overlap(sig_name, lib_sigs, sig_sep)
+    obs_rs, sort_indices = enrich.get_running_sum(sig_val, overlap_ratios, method=method)
+
+    if n_hits.shape[0] == 1:  
+        n_hits = np.tile(np.array(n_hits), n_sample)
+
+    res = pd.DataFrame({
+        "Sample": range(n_sample),
+        "Term": [lib_key] * n_sample,
+        "n_gene": [n_lib_sig] * n_sample,
+        "n_hit": n_hits,
+    })
+
+    i2sig = np.take_along_axis(sig_name, sort_indices, axis=0)
+    i2overlap_ratios = np.take_along_axis(overlap_ratios, sort_indices, axis=0)
+    sorted_abs = np.abs(np.take_along_axis(sig_val, sort_indices, axis=0))
+
+    if method == 'KS' and cal_method == 'ES':
+        KS_res = sig_enrich_KS(obs_rs, sorted_abs, i2sig, i2overlap_ratios, sort_indices,
+                               prob_method=prob_method, cal_method=cal_method,
+                               n_perm=n_perm, save_permutation=save_permutation)
+        res = pd.concat([res, KS_res], axis=1)
+        res = res.sort_values("es_pval", key=abs, ascending=True)
+
+    elif method == 'KS' and cal_method == 'ESD':
+        KS_res = sig_enrich_KS(obs_rs, sorted_abs, i2sig, i2overlap_ratios, sort_indices,
+                               prob_method=prob_method, cal_method=cal_method,
+                               n_perm=n_perm, save_permutation=save_permutation)
+        res = pd.concat([res, KS_res], axis=1)
+        res = res.sort_values("esd_pval", key=abs, ascending=True)
+
+    if method == 'RC':
+        RC_res = sig_enrich_RC(obs_rs, sorted_abs, i2overlap_ratios, sort_indices,
+                               prob_method=prob_method, n_perm=n_perm, save_permutation=save_permutation)
+        res = pd.concat([res, RC_res], axis=1)
+        res = res.sort_values("AUC_pval", key=abs, ascending=True)
+
+    if method == 'PLAGE':
+        obs_plage = enrich.get_plage(sig_val)
+        null_plage = enrich.get_plage_null(sig_val, overlap_ratios, n_perm=n_perm)
+
+    return res
+
 def sig_enrich(sig_name, sig_val, library, 
                sig_sep=',', method='KS', n_perm=1000, prob_method='perm',
                seed: int=1, processes: int=4,
@@ -183,56 +235,21 @@ def sig_enrich(sig_name, sig_val, library,
                cal_method: str='ES', # ???
                save_permutation: bool=False, 
                ):
-
-    n_sample = sig_val.shape[1]
-
-    df_list = []
-    for lib_key in tqdm(list(library.keys()), desc="Enrichment ", disable=not verbose):
-        
-        lib_sigs = library[lib_key]
-        n_lib_sig = len(lib_sigs)
-
-        overlap_ratios, n_hits = enrich.get_overlap(sig_name, lib_sigs, sig_sep)
     
-        # obs_rs, null_rs, sort_indices = enrich.get_running_sum(sig_val, overlap_ratios, method=method, n_perm=n_perm)
-        obs_rs, sort_indices = enrich.get_running_sum(sig_val, overlap_ratios, method=method)
-
-        if n_hits.shape[0] == 1: # for single sig_name
-            n_hits = np.tile(np.array(n_hits), n_sample)
-        res = pd.DataFrame({
-            "Sample": range(n_sample),
-            "Term": [lib_key]*n_sample,
-            'n_gene': [n_lib_sig]*n_sample, 
-            'n_hit': n_hits,
-        }) 
-
-        i2sig = np.take_along_axis(sig_name, sort_indices, axis=0)
-
-        i2overlap_ratios = np.take_along_axis(overlap_ratios, sort_indices, axis=0)
-
-        sorted_abs = np.abs(np.take_along_axis(sig_val, sort_indices, axis=0))
-        
-        if method == 'KS' and cal_method == 'ES':
-            KS_res = sig_enrich_KS(obs_rs,sorted_abs, i2sig, i2overlap_ratios,sort_indices,prob_method=prob_method,cal_method=cal_method,n_perm=n_perm,save_permutation=save_permutation)
-            res = pd.concat([res, KS_res], axis=1)
-            res=res.sort_values("es_pval", key=abs, ascending=True)
-        elif method == 'KS' and cal_method == 'ESD':
-            KS_res = sig_enrich_KS(obs_rs, sorted_abs, i2sig,i2overlap_ratios,sort_indices,prob_method=prob_method,cal_method=cal_method,n_perm=n_perm,save_permutation=save_permutation)
-            res = pd.concat([res, KS_res], axis=1)
-            res=res.sort_values("esd_pval", key=abs, ascending=True)
-        
-        if method == 'RC':
-            RC_res = sig_enrich_RC(obs_rs, sorted_abs,i2overlap_ratios,sort_indices, prob_method=prob_method,n_perm=n_perm,save_permutation=save_permutation)
-            
-            res = pd.concat([res, RC_res], axis=1)
-            res=res.sort_values("AUC_pval", key=abs, ascending=True)
-
-        if method == 'PLAGE':
-            obs_plage = enrich.get_plage(sig_val)
-            null_plage = enrich.get_plage_null(sig_val,overlap_ratios, n_perm=n_perm)
-            
-        df_list.append(res)
+    args_list = [(lib_key, library, sig_name, sig_val, sig_sep, method, prob_method, cal_method, n_perm, save_permutation, verbose) 
+             for lib_key in library.keys()]
     
+    if processes == 1:
+        df_list = []
+        for args in args_list:
+            df_list.append(process_library_key(*args))
+    else:
+        df_list = []
+        with Pool(processes=processes) as pool:
+            results_list = (pool.starmap(process_library_key, args_list))
+
+        df_list.extend(results_list)
+        
     if not verbose:
         np.seterr(divide = 'ignore')
     
