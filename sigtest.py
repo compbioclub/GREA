@@ -14,8 +14,7 @@ from statsmodels.stats.multitest import multipletests
 import seaborn as sns
 
 
-import enrich
-
+import enrich as enrich
 
 from mpmath import mp, exp, log
 import math
@@ -182,6 +181,7 @@ def sig_enrich(sig_name, sig_val, library,
                min_size: int=5, max_size: int=4000,
                accuracy: int=40, deep_accuracy: int=50, 
                cal_method: str='ES', # ???
+               save_permutation: bool=False, 
                ):
 
     n_sample = sig_val.shape[1]
@@ -194,7 +194,9 @@ def sig_enrich(sig_name, sig_val, library,
 
         overlap_ratios, n_hits = enrich.get_overlap(sig_name, lib_sigs, sig_sep)
     
-        obs_rs, null_rs, sort_indices = enrich.get_running_sum(sig_val, overlap_ratios, method=method, n_perm=n_perm)
+        # obs_rs, null_rs, sort_indices = enrich.get_running_sum(sig_val, overlap_ratios, method=method, n_perm=n_perm)
+        obs_rs, sort_indices = enrich.get_running_sum(sig_val, overlap_ratios, method=method)
+
         if n_hits.shape[0] == 1: # for single sig_name
             n_hits = np.tile(np.array(n_hits), n_sample)
         res = pd.DataFrame({
@@ -207,18 +209,20 @@ def sig_enrich(sig_name, sig_val, library,
         i2sig = np.take_along_axis(sig_name, sort_indices, axis=0)
 
         i2overlap_ratios = np.take_along_axis(overlap_ratios, sort_indices, axis=0)
+
+        sorted_abs = np.abs(np.take_along_axis(sig_val, sort_indices, axis=0))
         
         if method == 'KS' and cal_method == 'ES':
-            KS_res = sig_enrich_KS(obs_rs, null_rs,i2sig,i2overlap_ratios,prob_method=prob_method,cal_method=cal_method)
+            KS_res = sig_enrich_KS(obs_rs,sorted_abs, i2sig, i2overlap_ratios,sort_indices,prob_method=prob_method,cal_method=cal_method,n_perm=n_perm,save_permutation=save_permutation)
             res = pd.concat([res, KS_res], axis=1)
             res=res.sort_values("es_pval", key=abs, ascending=True)
         elif method == 'KS' and cal_method == 'ESD':
-            KS_res = sig_enrich_KS(obs_rs, null_rs, i2sig,i2overlap_ratios,prob_method=prob_method,cal_method=cal_method)
+            KS_res = sig_enrich_KS(obs_rs, sorted_abs, i2sig,i2overlap_ratios,sort_indices,prob_method=prob_method,cal_method=cal_method,n_perm=n_perm,save_permutation=save_permutation)
             res = pd.concat([res, KS_res], axis=1)
             res=res.sort_values("esd_pval", key=abs, ascending=True)
         
         if method == 'RC':
-            RC_res = sig_enrich_RC(obs_rs, null_rs, prob_method=prob_method)
+            RC_res = sig_enrich_RC(obs_rs, sorted_abs,i2overlap_ratios,sort_indices, prob_method=prob_method,n_perm=n_perm,save_permutation=save_permutation)
             
             res = pd.concat([res, RC_res], axis=1)
             res=res.sort_values("AUC_pval", key=abs, ascending=True)
@@ -300,16 +304,16 @@ def pred_prob(obs, nulls, prob_method):
     if prob_method == 'gamma':
         return pred_gamma_prob(obs, nulls)
 
-def sig_enrich_KS(obs_rs, null_rs, i2sig, hit_indicator, prob_method='signgamma', cal_method='ES'):
+def sig_enrich_KS(obs_rs, sorted_abs, i2sig, i2overlap_ratios,sort_indices,prob_method='signgamma', cal_method='ES', n_perm=1000,save_permutation=False):
     n_sample = obs_rs.shape[1]
     es, esd, peak = enrich.get_ES_ESD(obs_rs)
     le_genes = []
-    null_es, null_esd, null_peak = enrich.get_ES_ESD_null(null_rs)
+    null_es, null_esd, null_peak = enrich.get_ES_ESD_null(sorted_abs,i2overlap_ratios,sort_indices, n_perm=n_perm,save_permutation=save_permutation)
     es_pval = pred_prob(es, null_es, prob_method=prob_method)
     esd_pval = pred_prob(esd, null_esd, prob_method=prob_method)
     nes, nesd = [0]*n_sample, [0]*n_sample
     
-    le_genes_list = enrich.get_leading_edge(i2sig, hit_indicator, es, peak)
+    le_genes_list = enrich.get_leading_edge(i2sig, i2overlap_ratios, es, peak)
 
     if prob_method == 'signperm':
         es_null_mean = np.mean(null_es, axis=0)
@@ -368,10 +372,10 @@ def sig_enrich_KS(obs_rs, null_rs, i2sig, hit_indicator, prob_method='signgamma'
     res = res.dropna(subset=["es"] if cal_method == "ES" else ["esd"])
     return  res
 
-def sig_enrich_RC(obs_rs, null_rs, prob_method='perm'):
+def sig_enrich_RC(obs_rs, sorted_abs, i2overlap_ratios,sort_indices, prob_method='perm',n_perm=1000,save_permutation=False):
 
     auc = enrich.get_AUC(obs_rs)
-    null_auc = enrich.get_AUC_null(null_rs)
+    null_auc = enrich.get_AUC_null(sorted_abs,i2overlap_ratios,sort_indices, n_perm=n_perm,save_permutation=save_permutation)
     auc_pval = pred_prob(auc, null_auc, prob_method=prob_method)
 
     res = pd.DataFrame({

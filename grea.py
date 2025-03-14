@@ -38,7 +38,7 @@ class GREA(object):
             verbose: bool=False,
             min_size: int=5, max_size: int=4000,
             accuracy: int=40, deep_accuracy: int=50, # ???
-            cal_method: str='ES',):
+            cal_method: str='ES',save_permutation: bool=False,):
         #2dim    
         if sig_name.ndim == 1:
             sig_name = sig_name.reshape(-1, 1)
@@ -66,5 +66,6 @@ class GREA(object):
                 verbose=verbose, min_size=min_size, max_size=max_size,
                 accuracy=accuracy, deep_accuracy=deep_accuracy,
                 cal_method=cal_method, # ???
+                save_permutation=save_permutation,
         )
         return res
