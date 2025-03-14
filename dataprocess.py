@@ -1,6 +1,7 @@
 import pandas as pd
 import scanpy as sc
 import os
+import re
 
 def preprocess_signature(signature, group = None, FC = True, stat = 't-test',key_added = 'ttest_symptom',output_dir='Signature_divided'):
     if not os.path.exists(output_dir):
@@ -48,7 +49,8 @@ def preprocess_signature(signature, group = None, FC = True, stat = 't-test',key
         grouped_signature = {group: signature[signature['group'] == group] for group in signature['group'].unique()}
         for group, df in grouped_signature.items():
             df = df.drop(columns=['group'])
-            output_file = f"{output_dir}/signature_{group}.csv"
+            safe_group = re.sub(r'[\/:*?"<>|]', '_', group)
+            output_file = f"{output_dir}/signature_{safe_group}.csv"
             df.to_csv(output_file, index=False)
         return grouped_signature
     else:
