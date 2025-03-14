@@ -13,3 +13,7 @@ from .benchmarking import (
 from .library import (
     read_gmt
 )
+
+from .dataprocess import (
+    preprocess_signature
+)
