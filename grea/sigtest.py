@@ -391,13 +391,37 @@ def sig_enrich_KS(obs_rs, sorted_abs, i2sig, i2overlap_ratios,sort_indices,prob_
 
 def sig_enrich_RC(obs_rs, sorted_abs, i2overlap_ratios,sort_indices, prob_method='perm',n_perm=1000,save_permutation=False):
 
+    n_sample = obs_rs.shape[1]
+
     auc = enrich.get_AUC(obs_rs)
     null_auc = enrich.get_AUC_null(sorted_abs,i2overlap_ratios,sort_indices, n_perm=n_perm,save_permutation=save_permutation)
     auc_pval = pred_prob(auc, null_auc, prob_method=prob_method)
 
+    nauc =  [0]*n_sample
+
+    if prob_method == 'perm':
+        auc_null_mean = np.mean(null_auc, axis=0)
+        auc_null_mean[auc_null_mean == 0] = np.finfo(float).eps
+        nauc = auc/auc_null_mean
+    elif prob_method == 'gamma':
+        for i in range(n_sample):
+            prob = pred_gamma_prob_aux(auc[i], null_auc[:, i], accuracy=40, deep_accuracy=50)
+            nauc[i] = invcdf(1-prob)
+
+    if len(auc_pval) > 1:  # may need to apply, need to rewrite
+       auc_fdr_values = multipletests(auc_pval, method="fdr_bh")[1]
+       auc_sidak_values = multipletests(auc_pval, method="sidak")[1]
+    else:
+       auc_fdr_values = auc_pval
+       auc_sidak_values = auc_pval
+
     res = pd.DataFrame({
-        "AUC": auc, "AUC_pval": auc_pval, 
+        "AUC": auc, 
+        "NAUC": nauc,
+        "AUC_pval": auc_pval, 
         'prob_method': prob_method,
+        "fdr": auc_fdr_values,
+        "sidak": auc_sidak_values
     })
     res = res.dropna(subset=["AUC"])
     return res

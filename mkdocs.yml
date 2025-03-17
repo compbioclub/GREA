@@ -1,0 +1,8 @@
+site_name: grea
+theme:
+  name: "material"  # Change theme if needed
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Usage: usage.md
