@@ -96,7 +96,7 @@ def estimate_gamma_paras(nulls):
               f"var: {np.var(nulls):.3f}, "
               f"range: [{np.min(nulls):.3f}, {np.max(nulls):.3f}], "
               f"size: {len(nulls)}")
-        return 2.0, 1.0, 1.0
+        return np.nan,np.nan,np.nan
 
 
 
@@ -164,6 +164,9 @@ def pred_gamma_prob(obs, nulls, accuracy=40, deep_accuracy=50):
 def pred_gamma_prob_aux(obs, nulls, accuracy=40, deep_accuracy=50):
     alpha_pos, beta_pos, ks_pos = estimate_gamma_paras(nulls)
 
+    if np.isnan(alpha_pos) or np.isnan(beta_pos) or np.isnan(ks_pos):
+        return np.nan
+
     mp.dps = accuracy
     mp.prec = accuracy
  
@@ -173,7 +176,7 @@ def pred_gamma_prob_aux(obs, nulls, accuracy=40, deep_accuracy=50):
         mp.dps = deep_accuracy
         mp.prec = deep_accuracy
         prob = gammacdf(obs, float(alpha_pos), float(beta_pos), dps=deep_accuracy)
-    return prob
+    return 1-prob
 
 
 def process_library_key(lib_key, library, sig_name, sig_val, sig_sep, method, prob_method, cal_method, n_perm, save_permutation, verbose):
@@ -406,7 +409,7 @@ def sig_enrich_RC(obs_rs, sorted_abs, i2overlap_ratios,sort_indices, prob_method
     elif prob_method == 'gamma':
         for i in range(n_sample):
             prob = pred_gamma_prob_aux(auc[i], null_auc[:, i], accuracy=40, deep_accuracy=50)
-            nauc[i] = invcdf(1-prob)
+            nauc[i] = invcdf(prob)
 
     if len(auc_pval) > 1:  # may need to apply, need to rewrite
        auc_fdr_values = multipletests(auc_pval, method="fdr_bh")[1]
