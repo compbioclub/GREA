@@ -6,3 +6,5 @@ build/
 grea.egg-info
 DATA/
 result/
+site/
+
