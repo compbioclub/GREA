@@ -3,7 +3,7 @@ import scanpy as sc
 import os
 import re
 
-def preprocess_signature(signature, group = None, FC = True, stat = 't-test',key_added = 'ttest_symptom',output_dir='Signature_divided'):
+def preprocess_signature(signature, group = None, FC = True, stat = 't-test',key_added = 'ttest_symptom',output_dir='Signature_divided',base_name = 'Flu'):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -50,7 +50,7 @@ def preprocess_signature(signature, group = None, FC = True, stat = 't-test',key
         for group, df in grouped_signature.items():
             df = df.drop(columns=['group'])
             safe_group = re.sub(r'[\/:*?"<>|]', '_', group)
-            output_file = f"{output_dir}/signature_{safe_group}.csv"
+            output_file = f"{output_dir}/{base_name}_{safe_group}.csv"
             df.to_csv(output_file, index=False)
         return grouped_signature
     else:
