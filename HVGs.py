@@ -15,7 +15,6 @@ def HVGs(exp_matrix, n_top_genes=5000, flavor = 'seurat_v3',output_dir = 'Proces
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     # Process expression matrix with Scanpy
-    print(exp_matrix.columns)
     adata = sc.AnnData(exp_matrix.T)
     adata.obs_names = exp_matrix.columns
     adata.var_names = exp_matrix.index
@@ -25,7 +24,6 @@ def HVGs(exp_matrix, n_top_genes=5000, flavor = 'seurat_v3',output_dir = 'Proces
     # Identify highly variable genes
     sc.pp.highly_variable_genes(adata, n_top_genes=n_top_genes, flavor= flavor)
     adata = adata[:,adata.var['highly_variable']]
-    print(adata.shape)
     exp_matrix_5000 = pd.DataFrame(adata.X.T, index=adata.var_names, columns=adata.obs_names)
     exp_matrix_5000.to_csv(os.path.join(output_dir, f"{base_name}_HVGs.csv"))
     gene_list = exp_matrix_5000.index
@@ -33,7 +31,7 @@ def HVGs(exp_matrix, n_top_genes=5000, flavor = 'seurat_v3',output_dir = 'Proces
     return exp_matrix_5000, gene_list
 
 
-def entropy2gene(entropy,output_dir = 'Processed Data', base_name = 'FLu'):
+def entropy2gene(entropy,output_dir = 'Processed_Data', base_name = 'FLu'):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     # Calculate entropy-based
@@ -48,10 +46,11 @@ def entropy2gene(entropy,output_dir = 'Processed Data', base_name = 'FLu'):
     return single_genes
     
 
-def entropy_HVGs(entropy, gene_list, output_dir = 'Processed Data', base_name = 'FLu'):
+def entropy_HVGs(entropy, gene_list, output_dir = 'Processed_Data', base_name = 'FLu'):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     # Process interaction data if available
+    entropy.set_index(['node1','node2'], inplace=True)
     entropy_5000 = entropy[entropy.index.get_level_values(0).isin(gene_list) & entropy.index.get_level_values(1).isin(gene_list)]
     entropy_5000.to_csv(os.path.join(output_dir,f"{base_name}_entropy_HVGs.csv"))
     print(f"Done: {entropy}")
