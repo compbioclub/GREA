@@ -15,11 +15,15 @@ from .library import (
 )
 
 from .dataprocess import (
-    preprocess_signature
-)
-
-from .HVGs import (
+    preprocess_signature,
     HVGs,
     entropy2gene,
     entropy_HVGs
+
 )
+
+# from .HVGs import (
+#     High_vars,
+#     entropy2gene,
+#     entropy_HVGs
+# )
