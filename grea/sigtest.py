@@ -80,11 +80,12 @@ def estimate_gamma_paras(nulls):
     nulls = nulls[nulls > 0] 
 
     if len(nulls) < 2:
-        raise ValueError("Not enough valid data to fit gamma distribution. Please consider using permutation method instead.")
+        print("Warning: Not enough valid data to fit gamma distribution. Using default parameters.")
+        return np.nan, np.nan, np.nan  # 直接返回默认值，而不是抛出异常
     try:
         fit_alpha, fit_loc, fit_beta = gamma.fit(nulls, floc=0)
         if not (np.isfinite(fit_alpha) and np.isfinite(fit_beta)):
-            raise ValueError(
+            raise print(
                 "Gamma distribution fitting failed: invalid parameters. "
                 "Please consider using permutation method instead."
             )
