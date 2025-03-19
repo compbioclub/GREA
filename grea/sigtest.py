@@ -176,10 +176,20 @@ def pred_gamma_prob_aux(obs, nulls, accuracy=40, deep_accuracy=50):
  
     prob = gamma.cdf(obs, float(alpha_pos), scale=float(beta_pos))
 
+    if not isinstance(prob, (int, float, np.number)):
+        print("gamma.cdf returned invalid type:", type(prob), prob)
+        return np.nan
+
+
     if prob > 0.999999999 or prob < 0.00000000001:
         mp.dps = deep_accuracy
         mp.prec = deep_accuracy
         prob = gammacdf(obs, float(alpha_pos), float(beta_pos), dps=deep_accuracy)
+
+        if not isinstance(prob, (int, float, np.number)):
+            print("gamma.cdf returned invalid type:", type(prob), prob)
+            return np.nan
+        
     return 1-prob
 
 
