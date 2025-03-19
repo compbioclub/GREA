@@ -3,7 +3,7 @@ import scanpy as sc
 import os
 import re
 
-def preprocess_signature(signature, group = None, FC = True, stat = 't-test',key_added = 'ttest_symptom',output_dir='Signature_divided',base_name = 'Flu'):
+def preprocess_signature(signature, group = None, FC = True, stat = 'wilcoxon',key_added = 'wilcoxon_symptom',output_dir='Signature_divided',base_name = 'Flu'):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
