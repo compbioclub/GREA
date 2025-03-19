@@ -1,6 +1,6 @@
-# grea
+# GREA
 
-Welcome to the official documentation of **grea**!
+Welcome to the official documentation of **GREA**!
 
 ## Getting Started
 
