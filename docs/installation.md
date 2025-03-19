@@ -1,6 +1,6 @@
 # Installation Guide
 
-This guide explains how to install and configure **grea**.
+This guide explains how to install and configure **GREA**.
 
 ## Prerequisites
 
@@ -15,3 +15,5 @@ You can install it directly using `pip`:
 
 ```bash
 pip install grea
+
+```

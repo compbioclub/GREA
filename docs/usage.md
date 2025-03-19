@@ -1,6 +1,6 @@
 # Usage Guide
 
-This guide explains how to use **grea**.
+This guide explains how to use **GREA**.
 
 ## Basic Usage
 
