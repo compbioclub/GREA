@@ -120,6 +120,9 @@ def pred_signgamma_prob_aux(obs, nulls, symmetric=True, accuracy=40, deep_accura
     
     alpha_pos, beta_pos, ks_pos, alpha_neg, beta_neg, ks_neg, pos_ratio = estimate_signgamma_paras(nulls, symmetric)
 
+    if np.isnan(alpha_pos) or np.isnan(beta_pos) or np.isnan(ks_pos):
+        return np.nan, np.nan
+
     mp.dps = accuracy
     mp.prec = accuracy
 
@@ -410,7 +413,10 @@ def sig_enrich_RC(obs_rs, sorted_abs, i2overlap_ratios,sort_indices, prob_method
     elif prob_method == 'gamma':
         for i in range(n_sample):
             prob = pred_gamma_prob_aux(auc[i], null_auc[:, i], accuracy=40, deep_accuracy=50)
-            nauc[i] = invcdf(prob)
+            if np.isnan(prob):
+                nauc[i] = np.nan
+            else:
+                nauc[i] = invcdf(prob)
 
     if len(auc_pval) > 1:  # may need to apply, need to rewrite
        auc_fdr_values = multipletests(auc_pval, method="fdr_bh")[1]
