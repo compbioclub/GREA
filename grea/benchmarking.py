@@ -5,7 +5,7 @@ from grea import GREA
 import multiprocessing
 import gseapy
 import os
-from dataprocess import preprocess_signature
+from grea.dataprocess import preprocess_signature
 
 
 

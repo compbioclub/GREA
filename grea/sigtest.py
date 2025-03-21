@@ -16,7 +16,7 @@ from multiprocessing import Pool
 
 
 
-import enrich as enrich
+import grea.enrich as enrich
 
 from mpmath import mp, exp, log
 import math
@@ -80,11 +80,12 @@ def estimate_gamma_paras(nulls):
     nulls = nulls[nulls > 0] 
 
     if len(nulls) < 2:
-        raise ValueError("Not enough valid data to fit gamma distribution. Please consider using permutation method instead.")
+        print("Warning: Not enough valid data to fit gamma distribution. Using default parameters.")
+        return np.nan, np.nan, np.nan  # 直接返回默认值，而不是抛出异常
     try:
         fit_alpha, fit_loc, fit_beta = gamma.fit(nulls, floc=0)
         if not (np.isfinite(fit_alpha) and np.isfinite(fit_beta)):
-            raise ValueError(
+            raise print(
                 "Gamma distribution fitting failed: invalid parameters. "
                 "Please consider using permutation method instead."
             )
@@ -96,7 +97,7 @@ def estimate_gamma_paras(nulls):
               f"var: {np.var(nulls):.3f}, "
               f"range: [{np.min(nulls):.3f}, {np.max(nulls):.3f}], "
               f"size: {len(nulls)}")
-        return 2.0, 1.0, 1.0
+        return np.nan,np.nan,np.nan
 
 
 
@@ -118,6 +119,9 @@ def pred_signgamma_prob_aux(obs, nulls, symmetric=True, accuracy=40, deep_accura
     # print("Indices of Infinite values:", inf_indices)
     
     alpha_pos, beta_pos, ks_pos, alpha_neg, beta_neg, ks_neg, pos_ratio = estimate_signgamma_paras(nulls, symmetric)
+
+    if np.isnan(alpha_pos) or np.isnan(beta_pos) or np.isnan(ks_pos):
+        return np.nan, np.nan
 
     mp.dps = accuracy
     mp.prec = accuracy
@@ -164,16 +168,29 @@ def pred_gamma_prob(obs, nulls, accuracy=40, deep_accuracy=50):
 def pred_gamma_prob_aux(obs, nulls, accuracy=40, deep_accuracy=50):
     alpha_pos, beta_pos, ks_pos = estimate_gamma_paras(nulls)
 
+    if np.isnan(alpha_pos) or np.isnan(beta_pos) or np.isnan(ks_pos):
+        return np.nan
+
     mp.dps = accuracy
     mp.prec = accuracy
  
     prob = gamma.cdf(obs, float(alpha_pos), scale=float(beta_pos))
 
+    if not isinstance(prob, (int, float, np.number)):
+        print("gamma.cdf returned invalid type:", type(prob), prob)
+        return np.nan
+
+
     if prob > 0.999999999 or prob < 0.00000000001:
         mp.dps = deep_accuracy
         mp.prec = deep_accuracy
         prob = gammacdf(obs, float(alpha_pos), float(beta_pos), dps=deep_accuracy)
-    return prob
+
+        if not isinstance(prob, (int, float, np.number)):
+            print("gamma.cdf returned invalid type:", type(prob), prob)
+            return np.nan
+        
+    return 1-prob
 
 
 def process_library_key(lib_key, library, sig_name, sig_val, sig_sep, method, prob_method, cal_method, n_perm, save_permutation, verbose):
@@ -391,13 +408,40 @@ def sig_enrich_KS(obs_rs, sorted_abs, i2sig, i2overlap_ratios,sort_indices,prob_
 
 def sig_enrich_RC(obs_rs, sorted_abs, i2overlap_ratios,sort_indices, prob_method='perm',n_perm=1000,save_permutation=False):
 
+    n_sample = obs_rs.shape[1]
+
     auc = enrich.get_AUC(obs_rs)
     null_auc = enrich.get_AUC_null(sorted_abs,i2overlap_ratios,sort_indices, n_perm=n_perm,save_permutation=save_permutation)
     auc_pval = pred_prob(auc, null_auc, prob_method=prob_method)
 
+    nauc =  [0]*n_sample
+
+    if prob_method == 'perm':
+        auc_null_mean = np.mean(null_auc, axis=0)
+        auc_null_mean[auc_null_mean == 0] = np.finfo(float).eps
+        nauc = auc/auc_null_mean
+    elif prob_method == 'gamma':
+        for i in range(n_sample):
+            prob = pred_gamma_prob_aux(auc[i], null_auc[:, i], accuracy=40, deep_accuracy=50)
+            if np.isnan(prob):
+                nauc[i] = np.nan
+            else:
+                nauc[i] = invcdf(prob)
+
+    if len(auc_pval) > 1:  # may need to apply, need to rewrite
+       auc_fdr_values = multipletests(auc_pval, method="fdr_bh")[1]
+       auc_sidak_values = multipletests(auc_pval, method="sidak")[1]
+    else:
+       auc_fdr_values = auc_pval
+       auc_sidak_values = auc_pval
+
     res = pd.DataFrame({
-        "AUC": auc, "AUC_pval": auc_pval, 
+        "AUC": auc, 
+        "NAUC": nauc,
+        "AUC_pval": auc_pval, 
         'prob_method': prob_method,
+        "fdr": auc_fdr_values,
+        "sidak": auc_sidak_values
     })
     res = res.dropna(subset=["AUC"])
     return res
