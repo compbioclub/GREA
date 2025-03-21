@@ -13,7 +13,7 @@ from mpmath import mp, mpf
 from statsmodels.stats.multitest import multipletests
 import seaborn as sns
 from multiprocessing import Pool
-
+from datetime import datetime;
 
 
 import grea.enrich as enrich
@@ -158,9 +158,9 @@ def pred_gamma_prob(obs, nulls, accuracy=40, deep_accuracy=50):
     probs = []
     for i in range(obs.shape[0]):
         current_nulls = nulls[:, i]
-        print(f"\nFor i={i}:")
-        print(f"Current nulls shape: {current_nulls.shape}")
-        print(f"Number of valid values: {np.sum((current_nulls > 0) & np.isfinite(current_nulls))}")
+        # print(f"\nFor i={i}:")
+        # print(f"Current nulls shape: {current_nulls.shape}")
+        # print(f"Number of valid values: {np.sum((current_nulls > 0) & np.isfinite(current_nulls))}")
         prob = pred_gamma_prob_aux(obs[i], nulls[:, i], accuracy=accuracy, deep_accuracy=deep_accuracy)
         probs.append(prob)
     return np.array(probs)
@@ -217,29 +217,62 @@ def process_library_key(lib_key, library, sig_name, sig_val, sig_sep, method, pr
     i2overlap_ratios = np.take_along_axis(overlap_ratios, sort_indices, axis=0)
     sorted_abs = np.abs(np.take_along_axis(sig_val, sort_indices, axis=0))
 
-    if method == 'KS' and cal_method == 'ES':
-        KS_res = sig_enrich_KS(obs_rs, sorted_abs, i2sig, i2overlap_ratios, sort_indices,
-                               prob_method=prob_method, cal_method=cal_method,
-                               n_perm=n_perm, save_permutation=save_permutation)
-        res = pd.concat([res, KS_res], axis=1)
-        res = res.sort_values("es_pval", key=abs, ascending=True)
+    if n_perm == 0 :
+        if method == "KS":
+            es, esd, peak = enrich.get_ES_ESD(obs_rs)
+            le_genes_list = enrich.get_leading_edge(i2sig, i2overlap_ratios, es, peak)
+            le_ns = [len(le) for le in le_genes_list]
+            le_gene_str = [','.join(le) for le in le_genes_list]
 
-    elif method == 'KS' and cal_method == 'ESD':
-        KS_res = sig_enrich_KS(obs_rs, sorted_abs, i2sig, i2overlap_ratios, sort_indices,
-                               prob_method=prob_method, cal_method=cal_method,
-                               n_perm=n_perm, save_permutation=save_permutation)
-        res = pd.concat([res, KS_res], axis=1)
-        res = res.sort_values("esd_pval", key=abs, ascending=True)
+            if cal_method == 'ES':
+                KS_res = pd.DataFrame({
+                    "es": es,
+                    "leading_edge_n":  le_ns,
+                    "leading_edge": le_gene_str,
+                })
+                res = pd.concat([res, KS_res], axis=1)
+                res = res.sort_values("es", key=abs, ascending=True)
+            elif cal_method == 'ESD':
+                KS_res = pd.DataFrame({
+                    "esd": esd,
+                    "leading_edge_n":  le_ns,
+                    "leading_edge": le_gene_str,
+                })
+                res = pd.concat([res, KS_res], axis=1)
+                res = res.sort_values("esd", key=abs, ascending=True)
 
-    if method == 'RC':
-        RC_res = sig_enrich_RC(obs_rs, sorted_abs, i2overlap_ratios, sort_indices,
-                               prob_method=prob_method, n_perm=n_perm, save_permutation=save_permutation)
-        res = pd.concat([res, RC_res], axis=1)
-        res = res.sort_values("AUC_pval", key=abs, ascending=True)
+        if method == "RC":
+            auc = enrich.get_AUC(obs_rs)
+            RC_res= pd.DataFrame({
+                "AUC": auc, 
+            })
+            res = pd.concat([res, RC_res], axis=1)
+            res = res.sort_values("auc", key=abs, ascending=True)
 
-    if method == 'PLAGE':
-        obs_plage = enrich.get_plage(sig_val)
-        null_plage = enrich.get_plage_null(sig_val, overlap_ratios, n_perm=n_perm)
+    else:  # n_perm > 0 
+        if method == 'KS' and cal_method == 'ES':
+            KS_res = sig_enrich_KS(obs_rs, sorted_abs, i2sig, i2overlap_ratios, sort_indices,
+                                prob_method=prob_method, cal_method=cal_method,
+                                n_perm=n_perm, save_permutation=save_permutation)
+            res = pd.concat([res, KS_res], axis=1)
+            res = res.sort_values("es_pval", key=abs, ascending=True)
+
+        elif method == 'KS' and cal_method == 'ESD':
+            KS_res = sig_enrich_KS(obs_rs, sorted_abs, i2sig, i2overlap_ratios, sort_indices,
+                                prob_method=prob_method, cal_method=cal_method,
+                                n_perm=n_perm, save_permutation=save_permutation)
+            res = pd.concat([res, KS_res], axis=1)
+            res = res.sort_values("esd_pval", key=abs, ascending=True)
+
+        if method == 'RC':
+            RC_res = sig_enrich_RC(obs_rs, sorted_abs, i2overlap_ratios, sort_indices,
+                                prob_method=prob_method, n_perm=n_perm, save_permutation=save_permutation)
+            res = pd.concat([res, RC_res], axis=1)
+            res = res.sort_values("AUC_pval", key=abs, ascending=True)
+
+        if method == 'PLAGE':
+            obs_plage = enrich.get_plage(sig_val)
+            null_plage = enrich.get_plage_null(sig_val, overlap_ratios, n_perm=n_perm)
 
     return res
 
@@ -271,6 +304,8 @@ def sig_enrich(sig_name, sig_val, library,
         np.seterr(divide = 'ignore')
     
     df = pd.concat(df_list)
+    if n_perm == 0:
+        return df
     if method == 'RC':
         df = df.sort_values("AUC_pval", key=abs, ascending=True)
     elif method == 'KS':
@@ -278,6 +313,7 @@ def sig_enrich(sig_name, sig_val, library,
             df = df.sort_values("es_pval", key=abs, ascending=True)
         elif cal_method == 'ESD':
             df = df.sort_values("esd_pval", key=abs, ascending=True)
+
 
     return df
 
@@ -293,8 +329,15 @@ def pred_perm_prob(obs, nulls):
     Returns:
     np.ndarray: Probabilities for each observed value, shape (n,).
     """
-    return (obs <= nulls).sum(axis=0)/nulls.shape[0]         
+    min_p = 1.0 / (nulls.shape[0] * 10)
+    max_p = 1.0 - min_p
 
+    pvals = (obs <= nulls).sum(axis=0) / nulls.shape[0]
+    pvals_clipped = np.clip(pvals, min_p, max_p)
+
+    return pvals_clipped
+
+      
 
 def pred_signperm_prob(obs, nulls):
     """
@@ -326,7 +369,11 @@ def pred_signperm_prob(obs, nulls):
         probs[neg_mask] = (
             np.sum(neg_obs >= neg_nulls, axis=0) / nulls.shape[0]
         )
-    return probs
+    
+    min_p = 1.0 / (nulls.shape[0] * 10)
+    max_p = 1.0 - min_p
+
+    return np.clip(probs,  min_p, max_p)
 
 def pred_prob(obs, nulls, prob_method):
     if prob_method == 'perm':
@@ -429,8 +476,9 @@ def sig_enrich_RC(obs_rs, sorted_abs, i2overlap_ratios,sort_indices, prob_method
                 nauc[i] = invcdf(prob)
 
     if len(auc_pval) > 1:  # may need to apply, need to rewrite
-       auc_fdr_values = multipletests(auc_pval, method="fdr_bh")[1]
-       auc_sidak_values = multipletests(auc_pval, method="sidak")[1]
+        valid_pvals = auc_pval[~np.isnan(auc_pval)]
+        auc_fdr_values = multipletests(valid_pvals, method="fdr_bh")[1]
+        auc_sidak_values = multipletests(valid_pvals, method="sidak")[1]
     else:
        auc_fdr_values = auc_pval
        auc_sidak_values = auc_pval
