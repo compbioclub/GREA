@@ -81,10 +81,11 @@ def get_running_sum_aux(sorted_abs, overlap_ratios, sort_indices, method='KS'):
     norm_hit = 1.0 / sum_hit_scores.astype(float)
 
     if method == 'KS':
-        if number_miss == 0:
-            norm_miss = 0
-        else:
-            norm_miss = 1.0 / number_miss
+        norm_miss = np.zeros_like(number_miss, dtype=float)
+        nonzero_mask = number_miss > 0  
+        norm_miss[nonzero_mask] = 1.0 / number_miss[nonzero_mask]
+
+        
         sorted_miss = np.take_along_axis(miss_indicator, sort_indices, axis=0)
         score = sorted_or * sorted_abs * norm_hit[np.newaxis, :] - sorted_miss * norm_miss
     else:  # RC - recovery curve
@@ -97,18 +98,14 @@ def get_running_sum_aux(sorted_abs, overlap_ratios, sort_indices, method='KS'):
 def get_AUC(obs_rs):
     # running_sum  n_sig x n_sample
     n_sig, n_sample = obs_rs.shape
-    AUCs = np.zeros(n_sample)
-    #print(obs_rs.dtype)
     obs_rs = obs_rs.astype(float)
-    for i in range(n_sample):
-        data = obs_rs[:, i]
-        valid_mask = ~np.isnan(data)
-        
-        if np.any(valid_mask):
-            clean_data = data[valid_mask]
-            AUCs[i] = np.maximum(0,(np.sum(clean_data) - 0.5) / n_sig)
-        else:
-            AUCs[i] = np.nan
+    
+    valid_mask = ~np.isnan(obs_rs)
+    
+    sum_clean = np.nansum(obs_rs, axis=0)  # 对每列求和，忽略 NaN
+    any_valid = np.any(valid_mask, axis=0)  # 检查每列是否至少有一个非 NaN 值
+
+    AUCs = np.where(any_valid, np.maximum(0, (sum_clean - 0.5) / n_sig), np.nan)
             
     return AUCs
 
