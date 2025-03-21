@@ -81,7 +81,10 @@ def get_running_sum_aux(sorted_abs, overlap_ratios, sort_indices, method='KS'):
     norm_hit = 1.0 / sum_hit_scores.astype(float)
 
     if method == 'KS':
-        norm_miss = 1.0 / number_miss
+        if number_miss == 0:
+            norm_miss = 0
+        else:
+            norm_miss = 1.0 / number_miss
         sorted_miss = np.take_along_axis(miss_indicator, sort_indices, axis=0)
         score = sorted_or * sorted_abs * norm_hit[np.newaxis, :] - sorted_miss * norm_miss
     else:  # RC - recovery curve
@@ -103,7 +106,7 @@ def get_AUC(obs_rs):
         
         if np.any(valid_mask):
             clean_data = data[valid_mask]
-            AUCs[i] =  (np.sum(clean_data) - 0.5) / n_sig    
+            AUCs[i] = np.maximum(0,(np.sum(clean_data) - 0.5) / n_sig)
         else:
             AUCs[i] = np.nan
             
@@ -137,7 +140,7 @@ def get_AUC_null(sorted_abs, overlap_ratios,sort_indices, n_perm=1000,save_permu
     AUCs = np.zeros((n_perm, n_sample))
 
     for i in range(n_perm):
-        rs = get_running_sum_null(sorted_abs, overlap_ratios, sort_indices, method="KS")
+        rs = get_running_sum_null(sorted_abs, overlap_ratios, sort_indices, method="RC")
         if save_permutation:
             print(f"Saved permutation {i} running sum to permutation_test/permutation_{i}_running_sum.npy")
             if not os.path.exists("permutation_test"):

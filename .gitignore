@@ -1,9 +1,19 @@
 __pycache__
 *.pyc
 blitzgsea/
+<<<<<<< HEAD
 result/
 build/
 grea/__pycache__/
 test/
 grea.egg-info/
 DATA/
+=======
+test/
+build/
+grea.egg-info
+DATA/
+result/
+site/
+
+>>>>>>> origin/dev
