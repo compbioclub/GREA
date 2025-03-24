@@ -19,7 +19,9 @@ def preprocess_signature(signature, group = None, FC = True, stat = 'wilcoxon',k
         adata.obs_names = signature.columns
         adata.var_names = signature.index
         #group
-        adata.obs['group'] = pd.Categorical([group.get(x) for x in adata.obs_names])
+        valid_obs_names = [x for x in adata.obs_names if x in group]
+        adata = adata[valid_obs_names, :]
+        adata.obs['group'] = pd.Categorical([group.get(x) for x in valid_obs_names])
         #preprocessing
         sc.pp.filter_genes(adata, min_cells=3)
         adata.layers["counts"] = adata.X.copy()
