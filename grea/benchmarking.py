@@ -5,7 +5,7 @@ from grea import GREA
 import multiprocessing
 import gseapy
 import os
-from grea.dataprocess import preprocess_signature
+from dataprocess import preprocess_signature
 
 
 
@@ -22,7 +22,7 @@ def chopped_gsea(rnk, gene_sets, processes, permutation_num=100, max_lib_size=10
         results.append(pre_res.res2d)
     return pd.concat(results)
 
-def run_method(method, signature, library, i, perm,):
+def run_method(method, signature, library, i, perm,sig_sep='_'):
     signature.columns = ["i","v"]
     sig_name = signature.values[:, 0][:, np.newaxis]
     sig_val = signature.values[:, 1][:, np.newaxis]
@@ -43,7 +43,7 @@ def run_method(method, signature, library, i, perm,):
     
     elif method == 'grea_KS_signperm_es':
         obj = GREA(processes=1, perm_n=perm, seed=perm*i, symmetric=True, verbose=False)
-        res3_es_1 = obj.fit(sig_name, sig_val, library, prob_method='signperm')
+        res3_es_1 = obj.fit(sig_name, sig_val, library, prob_method='signperm',sig_sep=sig_sep)
         res3_es_1 = res3_es_1.set_index('Term')
         res3_es_1["Method"] = method 
         res3_es_1['Perm_num'] = perm
@@ -51,7 +51,7 @@ def run_method(method, signature, library, i, perm,):
     
     elif method == 'grea_KS_signgamma_es':
         obj = GREA(processes=1, perm_n=perm, seed=perm*i, symmetric=True, verbose=False)
-        res3_es_2 = obj.fit(sig_name, sig_val, library, prob_method='signgamma')
+        res3_es_2 = obj.fit(sig_name, sig_val, library, prob_method='signgamma',sig_sep=sig_sep)
         res3_es_2 = res3_es_2.set_index('Term')
         res3_es_2["Method"] = method
         res3_es_2['Perm_num'] = perm
@@ -59,7 +59,7 @@ def run_method(method, signature, library, i, perm,):
     
     elif method == 'grea_KS_signperm_esd':
         obj = GREA(processes=1, perm_n=perm, seed=perm*i, symmetric=True, verbose=False)
-        res3_esd_1 = obj.fit(sig_name, sig_val, library, cal_method='ESD', prob_method='signperm')
+        res3_esd_1 = obj.fit(sig_name, sig_val, library, cal_method='ESD', prob_method='signperm',sig_sep=sig_sep)
         res3_esd_1 = res3_esd_1.set_index('Term')
         res3_esd_1["Method"] = method
         res3_esd_1['Perm_num'] = perm
@@ -67,7 +67,7 @@ def run_method(method, signature, library, i, perm,):
     
     elif method == 'grea_KS_signgamma_esd':
         obj = GREA(processes=1, perm_n=perm, seed=perm*i, symmetric=True, verbose=False)
-        res3_esd_2 = obj.fit(sig_name, sig_val, library, cal_method='ESD', prob_method='signgamma')
+        res3_esd_2 = obj.fit(sig_name, sig_val, library, cal_method='ESD', prob_method='signgamma',sig_sep=sig_sep)
         res3_esd_2 = res3_esd_2.set_index('Term')
         res3_esd_2["Method"] = method
         res3_esd_2['Perm_num'] = perm
@@ -75,7 +75,7 @@ def run_method(method, signature, library, i, perm,):
     
     elif method == 'grea_RC_perm_AUC':
         obj = GREA(processes=1, perm_n=perm, seed=perm*i, symmetric=True, verbose=False)
-        res3_auc_1 = obj.fit(sig_name, sig_val, library, method='RC')
+        res3_auc_1 = obj.fit(sig_name, sig_val, library, method='RC',sig_sep=sig_sep)
         res3_auc_1 = res3_auc_1.set_index('Term')
         res3_auc_1["Method"] = method
         res3_auc_1['Perm_num'] = perm
@@ -83,7 +83,7 @@ def run_method(method, signature, library, i, perm,):
     
     elif method == 'grea_RC_gamma_auc':
         obj = GREA(processes=1, perm_n=perm, seed=perm*i, symmetric=True, verbose=False)
-        res3_auc_2 = obj.fit(sig_name, sig_val, library, method='RC',prob_method='gamma')
+        res3_auc_2 = obj.fit(sig_name, sig_val, library, method='RC',prob_method='gamma',sig_sep=sig_sep)
         res3_auc_2 = res3_auc_2.set_index('Term')
         res3_auc_2["Method"] = method
         res3_auc_2['Perm_num'] = perm
@@ -92,7 +92,7 @@ def run_method(method, signature, library, i, perm,):
 
 
 
-def benchmark_parallel(signature, library, methods=['blitz', 'gseapy', 'grea_KS_signperm_es', 'grea_KS_signgamma_es', 'grea_KS_signperm_esd', 'grea_KS_signgamma_esd', 'grea_RC_perm_AUC', 'grea_RC_gamma_auc'], rep_n=11, perm_list=[250,500,750,1000,1250,1500,1750,2000,2250,2500,],output_dir='result',):
+def benchmark_parallel(signature, library, methods=['blitz', 'gseapy', 'grea_KS_signperm_es', 'grea_KS_signgamma_es', 'grea_KS_signperm_esd', 'grea_KS_signgamma_esd', 'grea_RC_perm_AUC', 'grea_RC_gamma_auc'], rep_n=11, perm_list=[250,500,750,1000,1250,1500,1750,2000,2250,2500,],output_dir='result',sig_sep='_',):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     for i in range(1, rep_n+1):
@@ -104,7 +104,7 @@ def benchmark_parallel(signature, library, methods=['blitz', 'gseapy', 'grea_KS_
         for perm in perm_list:
             print(f"perm = {perm}")
             for method in methods:
-                tasks.append((method, signature, library, i, perm))
+                tasks.append((method, signature, library, i, perm, sig_sep))
 
         with multiprocessing.Pool(processes=len(methods)) as pool:
             results_list = pool.starmap(run_method, tasks)
