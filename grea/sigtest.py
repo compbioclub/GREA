@@ -247,7 +247,7 @@ def process_library_key(lib_key, library, sig_name, sig_val, sig_sep, method, pr
                 "AUC": auc, 
             })
             res = pd.concat([res, RC_res], axis=1)
-            res = res.sort_values("auc", key=abs, ascending=True)
+            res = res.sort_values("AUC", key=abs, ascending=True)
 
     else:  # n_perm > 0 
         if method == 'KS' and cal_method == 'ES':
