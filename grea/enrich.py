@@ -16,9 +16,11 @@ def get_leading_edge(i2sig, hit_indicator, ES, peak):
     leading_edge_genes = []
     for i in range(len(ES)):  
         if ES[i] > 0:
-            le_indices = np.where(hit_indicator[:peak[i]+1, i] > 0)[0] 
+            local_indices = np.where(hit_indicator[:peak[i]+1, i] > 0)[0]
+            le_indices = local_indices 
         else:
-            le_indices = np.where(hit_indicator[peak[i]:, i] > 0)[0] 
+            local_indices = np.where(hit_indicator[peak[i]:, i] > 0)[0] 
+            le_indices = local_indices + peak[i]
 
         le_genes = [str(i2sig[j, i]) for j in le_indices]  
         leading_edge_genes.append(le_genes)
