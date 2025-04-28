@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 import matplotlib as mpl
 from scipy.stats import gamma
 from matplotlib.patches import Rectangle
+from sklearn.preprocessing import MaxAbsScaler
 import grea.enrich as enrich
 import grea.sigtest as sigtest
 import seaborn as sns
@@ -28,7 +29,7 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
     figure: The running sum plot for the given geneset and signature.
     """
     result = result.copy()
-    result = result.set_index(['Term'])
+    # result = result.set_index(['Term'])
     if not interactive_plot:
         plt.ioff()
 
@@ -74,6 +75,8 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         sig_val[:, i] = sig_val_i
 
         lib_sigs = set(library.get(geneset, []))
+        # print(result)
+        result = result[(result['Term'] == geneset) & (result['Sample'] == i)]
         
         if len(lib_sigs) == 0:
             raise ValueError(f"The geneset '{geneset}' is not found in the provided library.")
@@ -90,8 +93,8 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         sorted_abs = np.abs(sorted_sig)
 
         obs_rs = enrich.get_running_sum_aux(sorted_abs, overlap_ratios, sort_indices, method=method) 
-        es,esd, *_ = enrich.get_ES_ESD(obs_rs)
-        AUC = enrich.get_AUC(obs_rs)
+        # es,esd, *_ = enrich.get_ES_ESD(obs_rs)
+        # AUC = enrich.get_AUC(obs_rs)
         obs_rs = list(obs_rs[:,0])
 
         fig = plt.figure(figsize=(7,5),facecolor='white',edgecolor='black')
@@ -116,7 +119,39 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         plt.xlim([0, len(obs_rs)])
         
         nn = np.argmax(np.abs(obs_rs))  
-        ax1.vlines(x=nn, ymin=np.min(obs_rs), ymax=np.max(obs_rs),linestyle = ':', color="red")
+        if method == "KS":
+            ax1.vlines(x=nn, ymin=np.min(obs_rs), ymax=np.max(obs_rs),linestyle = ':', color="red")
+
+
+        # === add text ===
+        
+
+        if method == "KS":
+            x_pos = len(obs_rs) * 0.2
+            y_pos = np.min(obs_rs) + (np.max(obs_rs) -np.min(obs_rs)) * 0.3
+            metric = result[plot_type.lower()][0]
+            n_metric = result['n'+plot_type.lower()][0]
+            p_val = result[plot_type.lower()+'_pval'][0]
+            fdr = result['fdr'][0]
+            n_leading_edge = result['leading_edge_n'][0]
+
+            info_text = f"{plot_type} : {metric:.3f}\n{'N'+plot_type} : {n_metric:.3f}\np val : {p_val:.3f}\nfdr : {fdr:.3f}\nn leading edge : {n_leading_edge}"
+
+        elif method == "RC":
+            x_pos = len(obs_rs) * 0.8
+            y_pos = np.min(obs_rs) + (np.max(obs_rs) -np.min(obs_rs)) * 0.3
+            metric = result[plot_type][0]
+            n_metric = result['N'+plot_type][0]
+            p_val = result[plot_type+'_pval'][0]
+            fdr = result['fdr'][0]
+
+            info_text = f"{plot_type} : {metric:.3f}\n{'N'+plot_type} : {n_metric:.3f}\np val : {p_val:.3f}\nfdr : {fdr:.3f}"
+
+        ax1.text(x_pos, y_pos, info_text,
+                fontsize=9, color='black',
+                verticalalignment='top', horizontalalignment='left',
+                bbox=dict(facecolor='white', alpha=0.6, edgecolor='gray'))
+
         
         # if plot_type == "ES":
         #     if result is not None and geneset in result.index:
@@ -222,9 +257,7 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         ax1.grid(True, color='lightgray', linestyle='-', linewidth=0.5, alpha=0.5)
         ax1.set(xticks=[])
         plt.title(f"{geneset} - {plot_type}(Celltype{i+1})", fontsize=18)
-        plt.ylabel("Enrichment Score (ES)" if plot_type == "ES" else 
-                "Enrichment Score Derivative (ESD)" if plot_type == "ESD" else 
-                "Area Under Curve (AUC)", fontsize=24 if compact else 16)
+        plt.ylabel(f"Running Sum({method})", fontsize=24 if compact else 16)
         
 
         if compact:
@@ -307,23 +340,28 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
             x = np.append(x, len(rank_vec)-1)
             y = rank_vec[x].astype(float)
 
+            scaler = MaxAbsScaler()
+            y_norm = scaler.fit_transform(y.reshape(-1,1)).flatten()
+
             
 
             if not np.all(np.isfinite(y)):
                 raise ValueError("y is NaN or Inf, Please check your input data.")
             
-            ax3.fill_between(x, y, color="lightgrey")
-            ax3.plot(x, y, color=(0.2,0.2,0.2), lw=1)
+            ax3.fill_between(x, y_norm, color="lightgrey")
+            ax3.plot(x, y_norm, color=(0.2,0.2,0.2), lw=1)
             ax3.hlines(y=0, xmin=0, xmax=len(rank_vec), color="black", zorder=100, lw=0.6)
+
             ax3.set_xlim([0, len(obs_rs)])
-            ax3.set_ylim([np.min(rank_vec), np.max(rank_vec)])
+            ax3.set_ylim([-1.05, 1.05]) 
+
             
             signs = np.sign(rank_vec)
             zero_cross_indices = np.where(signs[:-1] != signs[1:])[0]
             if zero_cross_indices.size > 0:
                 zero_cross = int(zero_cross_indices[0])
-                ax3.vlines(x=zero_cross, ymin=np.min(rank_vec), ymax=np.max(rank_vec), linestyle=':',color = 'black')
-                ax3.text(zero_cross, np.max(rank_vec)/3, "Zero crosses at "+str(zero_cross), 
+                ax3.vlines(x=zero_cross, ymin=-1, ymax=1, linestyle=':',color = 'black')
+                ax3.text(zero_cross,0.3, "Zero crosses at "+str(zero_cross), 
                         bbox={'facecolor':'white','alpha':0.5,'edgecolor':'none','pad':1}, 
                         ha='center', va='center')
 
