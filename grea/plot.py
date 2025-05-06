@@ -92,7 +92,7 @@ def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False,
         sorted_sig = sig_val_i[sort_indices]
         sorted_abs = np.abs(sorted_sig)
 
-        obs_rs = enrich.get_running_sum_aux(sorted_abs, overlap_ratios, sort_indices, method=method) 
+        obs_rs = enrich.get_running_sum_aux(sorted_abs, overlap_ratios, sort_indices, metric=metric) 
         # es,esd, *_ = enrich.get_ES_ESD(obs_rs)
         # AUC = enrich.get_AUC(obs_rs)
         obs_rs = list(obs_rs[:,0])

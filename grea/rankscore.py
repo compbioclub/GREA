@@ -1,6 +1,5 @@
 import numpy as np
 
-
 ####NEW CODE####
 
 def process_signature(sig_val, center=True, add_noise=False):
@@ -10,8 +9,6 @@ def process_signature(sig_val, center=True, add_noise=False):
     if center:
         sig_val -= sig_val.mean(axis=0)
     return sig_val
-
-
 
 
 def process_ss_signature(signature, center=True, add_noise=False):
@@ -26,6 +23,7 @@ def process_ss_signature(signature, center=True, add_noise=False):
         signature -= signature.values.mean(axis=0)   
     abs_signature = signature.abs()
     return signature, abs_signature
+
 
 def process_nss_signature(signature, center=True, add_noise=False):
     signature = signature.reset_index()
