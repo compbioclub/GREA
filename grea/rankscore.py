@@ -2,7 +2,7 @@ import numpy as np
 
 ####NEW CODE####
 
-def process_signature(sig_val, center=True, add_noise=False):
+def process_signature(sig_val, center=True, add_noise=False, **kwargs):
     # optionally noise can be added as a fraction of the expression values
     if add_noise:
         sig_val += np.random.normal(sig_val.shape)/(np.mean(np.abs(sig_val, axis=0))*100000)

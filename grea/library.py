@@ -6,8 +6,30 @@ import json
 import os
 import re
 import ssl
+from copy import deepcopy
 from bioservices import KEGG
 
+def get_library_from_names(libraries, min_size=None, max_size=None):
+    mylibs = list_libraries() + ['KO_PATHWAY_KO_TERM']
+    term_dict = {}
+    for key in libraries:
+        if key not in mylibs:
+            print(f'---WARMING: "{key}" is not a valid library name, filter it out.')
+            continue
+        lib = get_library(key)
+        mylib = {}
+        for term, genes in lib.items():
+            if min_size is not None and len(genes) < min_size:
+                print(f'---WARMING: "{key}-{term}" has {len(genes)} genes, less than min_size {min_size}, filter it out.')
+                continue
+            if max_size is not None and len(genes) > max_size:
+                print(f'---WARMING: "{key}-{term}" has {len(genes)} genes, larger than max_size {max_size}, filter it out.')
+                continue
+            mylib[f'{key}|{term}'] = genes
+        n_term = len(mylib.keys())
+        print(f'---Finished: Load {key} with {n_term} terms.')
+        term_dict.update(mylib)
+    return term_dict
 
 def get_library(library: str):
     """
@@ -50,7 +72,7 @@ def get_ko_library():
     return library
 
 def list_libraries():
-    print(get_config())
+    #print(get_config())
     return(load_json(get_config()["LIBRARY_LIST_URL"])["library"])
 
 def load_library(library: str, overwrite: bool = False, verbose: bool = False) -> str:

@@ -59,4 +59,6 @@ markdown_extensions:
 nav:
   - 🏠 Home: index.md
   - 📥 Installation: installation.md
-  - 🔧 Usage: usage.md
+  - 🔧 Tutorial: 
+    - Phenotype-level prerank enrichment for genes: tutorial/gene-pheno_prerank_enrich.ipynb
+    - Phenotype-level prerank enrichment for gene interactions: tutorial/interaction-pheno_prerank_enrich.ipynb
