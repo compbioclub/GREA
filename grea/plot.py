@@ -5,382 +5,144 @@ import matplotlib as mpl
 from scipy.stats import gamma
 from matplotlib.patches import Rectangle
 from sklearn.preprocessing import MaxAbsScaler
-import grea.enrich as enrich
-import grea.sigtest as sigtest
 import seaborn as sns
 from scipy.cluster import hierarchy
 from scipy.spatial.distance import pdist
 from scipy import stats
 
+from grea import out
 
-def running_sum(sig_name, sig_val, geneset, library, result=None, compact=False, center=True, interactive_plot=False, plot_type="ES", method="KS", sig_sep=',', cmap='YlGnBu'):
+def running_sum(obj, metric, term, obs_id,
+                interactive_plot=False, 
+                hit_cmap='YlGnBu'):
     """
     Plot the running sum for a given geneset and signature.
 
-    Parameters:
-    signature (array-like): The gene expression signature to analyze.
-    geneset (str): The name of the gene set for a gene set in the library.
-    library (array-like): The gene set library to use for enrichment analysis.
-    result (array-like, optional): A precomputed enrichment result. Default is None.
-    compact (bool, optional): If True, return a compact representation of the running sum plot for better readability in small plots. Default is False.
-    center (bool, optional): Center signature values. This is generally a good idea.
-    
     Returns:
     figure: The running sum plot for the given geneset and signature.
     """
-    result = result.copy()
-    # result = result.set_index(['Term'])
     if not interactive_plot:
         plt.ioff()
 
-    if isinstance(cmap, str):
-        cm = plt.cm.get_cmap(cmap)
+    t = obj.term_names.index(term)
+    o = obj.obs_names.index(obs_id)
+     
+    fig = plt.figure(figsize=(7,5),facecolor='white',edgecolor='black')
+    gs = fig.add_gridspec(12, 11, wspace=0, hspace=0)
+
+    curve_ax = fig.add_subplot(gs[0:7, 0:11],facecolor='white')
+    _pl_rs_curve(curve_ax, obj, metric, t, o)
+    
+    if isinstance(hit_cmap, str):
+        cm = plt.cm.get_cmap(hit_cmap)
     else:
-        cm = cmap 
-    
+        cm = hit_cmap 
     norm = mpl.colors.Normalize(vmin=0, vmax=1)
-
-
-    sig_name = np.asarray(sig_name)
-    sig_val = np.asarray(sig_val)
-
-    if sig_val.ndim == 1:
-        sig_val = sig_val.reshape(-1, 1)
-
-    if sig_val.ndim != 2:
-        raise ValueError("signature must be a 2D array.")
+    sm = mpl.cm.ScalarMappable(cmap=cm, norm=norm)
+    sm.set_array([])
+    hit_ax = fig.add_subplot(gs[7:8, 0:11],facecolor='white')
+    _plt_rs_hit(hit_ax, obj, t, o, cm, norm)
     
-    n_genes, n_samples = sig_val.shape
+    rank_ax = fig.add_subplot(gs[8:12, 0:11],facecolor='white')
+    _pl_rs_rank(rank_ax, obj, o)
 
-    if sig_name.ndim == 1:
-        sig_name = sig_name.reshape(-1, 1)
-    
-    if sig_name.shape[0] != n_genes:
-        raise ValueError("Number of genes in sig_name must match the number of genes in sig_val.")
-    
-    if sig_name.shape[1] == 1:
-        sig_name = np.repeat(sig_name, n_samples, axis=1)
-    elif sig_name.shape[1] != n_samples:
-        raise ValueError("If sig_name has multiple columns, the number of columns must match the number of samples in sig_val.")
-    
-    figures = [] 
+    cbar = plt.colorbar(sm, ax=fig.axes, orientation='vertical', fraction=0.05, pad=0.1)
+    cbar.set_label("Overlap Ratio", fontsize=12)
+    fig.patch.set_facecolor('white')
+    return fig
 
-    for i in range(n_samples):
-        
-        sig_name_i = sig_name[:, i]
-        sig_val_i = sig_val[:, i].astype(float)
-        if center:
-            sig_val_i = sig_val_i - np.mean(sig_val_i)
+def _pl_rs_curve(ax, obj, metric, t, o):
 
-        sig_val[:, i] = sig_val_i
+    if metric.startswith('KS'):
+        rs_matrix = obj.ks_rs
+    else:
+        rs_matrix = obj.rc_rs
+    obs_rs = rs_matrix[t, :, o]
 
-        lib_sigs = set(library.get(geneset, []))
-        # print(result)
-        result = result[(result['Term'] == geneset) & (result['Sample'] == i)]
-        
-        if len(lib_sigs) == 0:
-            raise ValueError(f"The geneset '{geneset}' is not found in the provided library.")
-        
-        overlap_ratios, hit_n = enrich.get_overlap(sig_name_i[:, np.newaxis],lib_sigs, sig_sep)
-        if overlap_ratios.ndim == 1:
-            overlap_ratios = overlap_ratios[:, np.newaxis]
+    for spine in ax.spines.values():
+        spine.set_edgecolor('black')
+        spine.set_linewidth(1)
 
-        sort_indices = np.argsort(sig_val_i)[::-1]
-        if sort_indices.ndim == 1:
-            sort_indices = sort_indices[:, np.newaxis]
+    ax.plot(obs_rs, color=(0,1,0), lw=5)
+    ax.tick_params(labelsize=10)
+ 
+    plt.xlim([0, len(obs_rs)])
+    nn = np.argmax(np.abs(obs_rs))  
 
-        sorted_sig = sig_val_i[sort_indices]
-        sorted_abs = np.abs(sorted_sig)
-
-        obs_rs = enrich.get_running_sum_aux(sorted_abs, overlap_ratios, sort_indices, metric=metric) 
-        # es,esd, *_ = enrich.get_ES_ESD(obs_rs)
-        # AUC = enrich.get_AUC(obs_rs)
-        obs_rs = list(obs_rs[:,0])
-
-        fig = plt.figure(figsize=(7,5),facecolor='white',edgecolor='black')
-        
-        if compact:
-            gs = fig.add_gridspec(5, 11, wspace=0, hspace=0)
-            ax1 = fig.add_subplot(gs[0:4, 0:11], facecolor='white')
-        else:
-            gs = fig.add_gridspec(12, 11, wspace=0, hspace=0)
-            ax1 = fig.add_subplot(gs[0:7, 0:11],facecolor='white')
-
-        for spine in ax1.spines.values():
-            spine.set_edgecolor('black')
-            spine.set_linewidth(1)
-
-        if compact:
-            ax1.plot(obs_rs, color=(0,1,0), lw=5)
-            ax1.tick_params(labelsize=24)
-        else:
-            ax1.plot(obs_rs, color=(0,1,0), lw=3)
-            ax1.tick_params(labelsize=16)
-        plt.xlim([0, len(obs_rs)])
-        
-        nn = np.argmax(np.abs(obs_rs))  
-        if method == "KS":
-            ax1.vlines(x=nn, ymin=np.min(obs_rs), ymax=np.max(obs_rs),linestyle = ':', color="red")
-
-
-        # === add text ===
-        
-
-        if method == "KS":
-            x_pos = len(obs_rs) * 0.2
-            y_pos = np.min(obs_rs) + (np.max(obs_rs) -np.min(obs_rs)) * 0.3
-            metric = result[plot_type.lower()][0]
-            n_metric = result['n'+plot_type.lower()][0]
-            p_val = result[plot_type.lower()+'_pval'][0]
-            fdr = result['fdr'][0]
-            n_leading_edge = result['leading_edge_n'][0]
-
-            info_text = f"{plot_type} : {metric:.3f}\n{'N'+plot_type} : {n_metric:.3f}\np val : {p_val:.3f}\nfdr : {fdr:.3f}\nn leading edge : {n_leading_edge}"
-
-        elif method == "RC":
-            x_pos = len(obs_rs) * 0.8
-            y_pos = np.min(obs_rs) + (np.max(obs_rs) -np.min(obs_rs)) * 0.3
-            metric = result[plot_type][0]
-            n_metric = result['N'+plot_type][0]
-            p_val = result[plot_type+'_pval'][0]
-            fdr = result['fdr'][0]
-
-            info_text = f"{plot_type} : {metric:.3f}\n{'N'+plot_type} : {n_metric:.3f}\np val : {p_val:.3f}\nfdr : {fdr:.3f}"
-
-        ax1.text(x_pos, y_pos, info_text,
+    if metric.startswith("KS"):
+        ax.vlines(x=nn, ymin=np.min(obs_rs), ymax=np.max(obs_rs),linestyle = ':', color="red")
+        x_pos = len(obs_rs) * 0.2
+        y_pos = np.min(obs_rs) + (np.max(obs_rs) -np.min(obs_rs)) * 0.3
+    else:
+        x_pos = len(obs_rs) * 0.8
+        y_pos = np.min(obs_rs) + (np.max(obs_rs) -np.min(obs_rs)) * 0.3
+    text = out.print_enrich(obj, metric, t, o)
+    ax.text(x_pos, y_pos, text,
                 fontsize=9, color='black',
                 verticalalignment='top', horizontalalignment='left',
                 bbox=dict(facecolor='white', alpha=0.6, edgecolor='gray'))
-
         
-        # if plot_type == "ES":
-        #     if result is not None and geneset in result.index:
-        #         try:
-                    
-        #             if isinstance(result.index, pd.MultiIndex):
-        #                 nes = result.xs((geneset, i), level=('Term', 'Sample'))['nes']
-        #             else:
-        #                 nes = result.loc[geneset, 'nes']
-        #                 if isinstance(nes, pd.Series):
-        #                     nes = nes.iloc[i] if i < len(nes) else nes.iloc[0]
-                    
-        #             if isinstance(nes, pd.Series):
-        #                 nes = nes.iloc[0]
-                    
-        #             label_text = f"NES={nes:.3f}"
-        #             va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-        #             text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
-        #         except Exception as e:
-                    
-        #             es_value = float(es[0]) if isinstance(es, np.ndarray) else float(es)
-        #             label_text = f"ES={es_value:.3f}"
-        #             va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-        #             text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
-        #     else:
-        #         es_value = float(es[0]) if isinstance(es, np.ndarray) else float(es)
-        #         label_text = f"ES={es_value:.3f}"
-        #         va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-        #         text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+    ax.grid(True, color='lightgray', linestyle='-', linewidth=0.5, alpha=0.5)
+    ax.set(xticks=[])
+    plt.title(f"{obj.term_names[t]} \n {metric} - {obj.obs_names[o]}", fontsize=12)
+    plt.ylabel(f"Running Sum ({metric.split('-')[0]})", fontsize=12)
 
 
+def _plt_rs_hit(ax, obj, t, o, cm, norm):
+    for spine in ax.spines.values():
+        spine.set_edgecolor('black')
+        spine.set_linewidth(1)
 
-        # elif plot_type == "ESD":
-        #     if result is not None and geneset in result.index:
-        #         try:
-                    
-        #             if isinstance(result.index, pd.MultiIndex):
-        #                 nesd = result.xs((geneset, i), level=('Term', 'Sample'))['nesd']
-        #             else:
-        #                 nesd = result.loc[geneset, 'nesd']
-        #                 if isinstance(nesd, pd.Series):
-        #                     nesd = nesd.iloc[i] if i < len(nesd) else nesd.iloc[0]
-                    
-        #             if isinstance(nesd, pd.Series):
-        #                 nesd = nesd.iloc[0]
-                    
-        #             label_text = f"NESD={nesd:.3f}"
-        #             va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-        #             text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
-        #         except Exception as e:
-                    
-        #             esd_value = float(esd[0]) if isinstance(esd, np.ndarray) else float(esd)
-        #             label_text = f"ESD={esd_value:.3f}"
-        #             va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-        #             text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
-        #     else:
-                
-        #         esd_value = float(esd[0]) if isinstance(esd, np.ndarray) else float(esd)
-        #         label_text = f"ESD={esd_value:.3f}"
-        #         va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-        #         text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
+    n_sig = obj.sorted_or.shape[1]
+    for i in range(n_sig):
+        ratio_val = obj.sorted_or[t, i, o]
+        if ratio_val == 0:
+            continue
+        color = cm(norm(ratio_val))
+        ax.vlines(x=i, ymin=-1, ymax=1, color=color, lw=0.5)
+    ax.set_xlim([0, n_sig])
+    ax.set_ylim([-1, 1])
+    ax.set(yticks=[])
+    ax.set(xticks=[])
 
 
-        # elif plot_type == "AUC":
-        #     if result is not None and geneset in result.index and "AUC" in result.columns:
-        #         try:
-        #             if isinstance(result.index, pd.MultiIndex):
-        #                 auc = result.xs((geneset, i), level=('Term', 'Sample'))['AUC']
-        #             else:
-        #                 auc = result.loc[geneset, 'AUC']
-        #                 if isinstance(auc, pd.Series):
-        #                     auc = auc.iloc[i] if i < len(auc) else auc.iloc[0]
-                    
-        #             if isinstance(auc, pd.Series):
-        #                 auc = auc.iloc[0]
-                    
-        #             label_text = f"AUC={auc:.3f}"
-        #             va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-        #             text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
-        #         except Exception as e:
-        #             auc_value = float(AUC[0]) if isinstance(auc, np.ndarray) else float(AUC)
-        #             label_text = f"AUC={auc_value:.3f}"
-        #             va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-        #             text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
-        #     else:
-        #         auc_value = float(AUC[0]) if isinstance(AUC, np.ndarray) else float(AUC)
-        #         label_text = f"AUC={auc_value:.3f}"
-        #         va = 'bottom' if max(obs_rs) > abs(min(obs_rs)) else 'top'
-        #         text_y = max(obs_rs) if va == 'bottom' else min(obs_rs)
-        # else:
-        #     raise ValueError("Invalid plot_type. Choose from 'ES', 'ESD', or 'AUC'.")
+def _pl_rs_rank(ax, obj, o):
+    for spine in ax.spines.values():
+        spine.set_edgecolor('black')
+        spine.set_linewidth(1)
 
-        # fontsize_text = 25 if compact else 20
-        
-        # # text label
-        # ax1.text(nn, text_y, label_text, 
-        #  size=fontsize_text, 
-        #  bbox={'facecolor':'white', 'alpha':0.8, 'edgecolor':'none', 'pad':1}, 
-        #  ha='center',  
-        #  va=va,        
-        #  zorder=100) 
-        
-        ax1.grid(True, color='lightgray', linestyle='-', linewidth=0.5, alpha=0.5)
-        ax1.set(xticks=[])
-        plt.title(f"{geneset} - {plot_type}(Celltype{i+1})", fontsize=18)
-        plt.ylabel(f"Running Sum({method})", fontsize=24 if compact else 16)
-        
+    rank_vec = obj.sorted_sig_vals[:, o]            
+    step = max(1, len(rank_vec) // 100)
+    x = np.arange(0, len(rank_vec), step).astype(int)
+    x = np.append(x, len(rank_vec)-1)
+    y = rank_vec[x].astype(float)
 
-        if compact:
-            ax2 = fig.add_subplot(gs[4:5, 0:11],facecolor='white')
-            for spine in ax2.spines.values():
-                spine.set_edgecolor('black')
-                spine.set_linewidth(1)
-            hit_positions = np.where(overlap_ratios[:, 0] > 0)[0]
-            position_map = {old: new for new, old in enumerate(sort_indices.flatten())}
-            sorted_hit_positions = np.array([position_map[pos] for pos in hit_positions])
-    
-            #print(hit_positions)
-            for pos in sorted_hit_positions:
-                original_pos = hit_positions[np.where(sorted_hit_positions == pos)[0][0]]
-                ratio_val = overlap_ratios[pos, 0]
-                #print(pos, ratio_val)
-                color = cm(norm(ratio_val))
-                ax2.vlines(x=pos, ymin=0, ymax=1, color=color, lw=1.5)
-            ax2.set_xlim([0, len(obs_rs)])
-            ax2.set_ylim([0, 1])
-            ax2.set(yticks=[])
-            ax2.set(xticks=[])
-            ax2.set_xlabel("Rank", fontsize=24)
+    scaler = MaxAbsScaler()
+    y_norm = scaler.fit_transform(y.reshape(-1,1)).flatten()
+
+    if not np.all(np.isfinite(y)):
+        raise ValueError("y is NaN or Inf, Please check your input data.")
             
+    ax.fill_between(x, y_norm, color="lightgrey")
+    ax.plot(x, y_norm, color=(0.2,0.2,0.2), lw=1)
+    ax.hlines(y=0, xmin=0, xmax=len(rank_vec), color="black", zorder=100, lw=0.6)
 
-            rank_vec = sig_val_i.flatten()
-            pos_indices = np.where(rank_vec > 0)[0]
-            neg_indices = np.where(rank_vec <= 0)[0]
-            
-            if len(pos_indices) > 0:
-                posv = np.percentile(pos_indices, np.linspace(0, 100, 10))
-                for j in range(9):
-                    ax2.add_patch(Rectangle((posv[j], 0), 
-                                            posv[j+1]-posv[j], 
-                                            0.5, 
-                                            linewidth=0, 
-                                            facecolor='red', 
-                                            alpha=0.6*(1-j*0.1)))
-            if len(neg_indices) > 0:
-                negv = np.percentile(neg_indices, np.linspace(0, 100, 10))
-                for j in range(9):
-                    ax2.add_patch(Rectangle((negv[j], 0), 
-                                            negv[j+1]-negv[j], 
-                                            0.5, 
-                                            linewidth=0, 
-                                            facecolor='blue', 
-                                            alpha=0.6*(0.1+j*0.1)))
-                    
-                  
-        else:
-            ax2 = fig.add_subplot(gs[7:8, 0:11],facecolor='white')
-            for spine in ax2.spines.values():
-                spine.set_edgecolor('black')
-                spine.set_linewidth(1)
-            hit_positions = np.where(overlap_ratios[:, 0] > 0)[0]
-
-            position_map = {old: new for new, old in enumerate(sort_indices.flatten())}
-            sorted_hit_positions = np.array([position_map[pos] for pos in hit_positions])
-
-            #print(hit_positions)
-            for pos in sorted_hit_positions:
-                original_pos = hit_positions[np.where(sorted_hit_positions == pos)[0][0]]
-                ratio_val = overlap_ratios[original_pos, 0]
-                #print(pos, ratio_val)
-                color = cm(norm(ratio_val))
-                ax2.vlines(x=pos, ymin=-1, ymax=1, color=color, lw=0.5)
-            ax2.set_xlim([0, len(obs_rs)])
-            ax2.set_ylim([-1, 1])
-            ax2.set(yticks=[])
-            ax2.set(xticks=[])
-
-
-            ax3 = fig.add_subplot(gs[8:12, 0:11],facecolor='white')
-            for spine in ax3.spines.values():
-                spine.set_edgecolor('black')
-                spine.set_linewidth(1)
-            rank_vec = sig_val_i[sort_indices.flatten()]
-            step = max(1, len(rank_vec) // 100)
-            x = np.arange(0, len(rank_vec), step).astype(int)
-            x = np.append(x, len(rank_vec)-1)
-            y = rank_vec[x].astype(float)
-
-            scaler = MaxAbsScaler()
-            y_norm = scaler.fit_transform(y.reshape(-1,1)).flatten()
-
-            
-
-            if not np.all(np.isfinite(y)):
-                raise ValueError("y is NaN or Inf, Please check your input data.")
-            
-            ax3.fill_between(x, y_norm, color="lightgrey")
-            ax3.plot(x, y_norm, color=(0.2,0.2,0.2), lw=1)
-            ax3.hlines(y=0, xmin=0, xmax=len(rank_vec), color="black", zorder=100, lw=0.6)
-
-            ax3.set_xlim([0, len(obs_rs)])
-            ax3.set_ylim([-1.05, 1.05]) 
-
-            
-            signs = np.sign(rank_vec)
-            zero_cross_indices = np.where(signs[:-1] != signs[1:])[0]
-            if zero_cross_indices.size > 0:
-                zero_cross = int(zero_cross_indices[0])
-                ax3.vlines(x=zero_cross, ymin=-1, ymax=1, linestyle=':',color = 'black')
-                ax3.text(zero_cross,0.3, "Zero crosses at "+str(zero_cross), 
+    ax.set_xlim([0, len(rank_vec)])
+    ax.set_ylim([-1.05, 1.05]) 
+           
+    signs = np.sign(rank_vec)
+    zero_cross_indices = np.where(signs[:-1] != signs[1:])[0]
+    if zero_cross_indices.size > 0:
+        zero_cross = int(zero_cross_indices[0])
+        ax.vlines(x=zero_cross, ymin=-1, ymax=1, linestyle=':',color = 'black')
+        ax.text(zero_cross,0.3, "Zero crosses at "+str(zero_cross), 
                         bbox={'facecolor':'white','alpha':0.5,'edgecolor':'none','pad':1}, 
                         ha='center', va='center')
 
-            plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-            plt.xlabel("Rank in Ordered Dataset", fontsize=16)
-            plt.ylabel("Ranked list metric", fontsize=16)
-            ax3.tick_params(labelsize=16)
-        sm = mpl.cm.ScalarMappable(cmap=cm, norm=norm)
-        sm.set_array([])
-        cbar = plt.colorbar(sm, ax=fig.axes, orientation='vertical', fraction=0.05, pad=0.1)
-        cbar.set_label("Overlap Ratio", fontsize=16)
-        fig.patch.set_facecolor('white')
-        figures.append(fig)
-
-    if n_samples == 1:
-        return figures[0]
-    else:
-        return figures
-
+    plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+    plt.xlabel("Orded Signatures", fontsize=12)
+    plt.ylabel("Sig Rank Score", fontsize=12)
+    ax.tick_params(labelsize=10)
 
 
 def top_table(sig_name, sig_val, library, result, n=10, center=True, interactive_plot=False, plot_type="ES", sig_sep=','):
@@ -504,12 +266,8 @@ def top_table(sig_name, sig_val, library, result, n=10, center=True, interactive
     else:
         return figures
 
-
-
-
         
 def plot_box(ax, data, ranks, color, label, min_p_value_line=None, line_label=None):
-    # 绘制boxplot
     data = pd.DataFrame(data)  
     box = ax.boxplot(data.T.loc[:, ranks], showfliers=False, patch_artist=True,
                      boxprops=dict(facecolor=color, color=color),

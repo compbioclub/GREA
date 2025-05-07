@@ -5,88 +5,109 @@ from copy import deepcopy
 
 import grea.rankscore as rankscore
 import grea.enrich_test as enrich_test
+import grea.library as library
+import grea.out as out
+from grea import plot as pl
 
-class GREA(object):
+def pheno_prerank_enrich(rank_df, libraries, **kwargs):
+    obj = _GREA(libraries, **kwargs)
+    sig_names = rank_df.index.to_numpy()
+    sig_vals = rank_df.to_numpy()
+    obs_names = rank_df.columns.to_list()
+    obj._check_sig_shape(sig_names, sig_vals, obs_names, **kwargs)
+    obj._enrich()
+    return obj    
 
-    def __init__(self, seed=0,
-                 processes = 4,
-                 verbose= True,
-                 ) -> None:
-        self.verbose = verbose
-        self.processes = processes
+class _GREA(object):
+
+    def __init__(self, libraries, seed=0, prob_method='perm', 
+                 sig_sep=',', verbose=True,
+                 min_size=5, max_size=1000, n_process=4,
+                 n_perm=1000, symmetric=False,
+                 get_pval=True, get_lead_sigs=True,
+                 save_permutation: bool=False) -> None:
+
+        if type(libraries) == list:
+            self.term_dict = library.get_library_from_names(libraries, min_size=min_size, max_size=max_size)
+        elif type(libraries) == dict:
+            self.term_dict = libraries
+        else:
+            raise ValueError(f'libraries must be list of library names, or a Python dictionary, where each key is a pathway name and the corresponding value is a list of genes.')
+
         if seed is None:
             seed = np.random.randint(-10000000, 100000000)
         random.seed(seed)
         np.random.seed(seed)
         self.seed = seed
 
-
-    def fit(self, sig_name, sig_val, library, 
-            metric='ESD',
-            prob_method='perm', sig_sep=',',
-            n_perm=1000,
-            add_noise=False, center=True,
-            verbose: bool=False, symmetric=False,
-            save_permutation: bool=False,
-            batch = True
-            ):
-        
-        if metric not in ['KS-ES', 'KS-ESD', 'RC-AUC']:
-            raise ValueError("metic must be 'KS-ES', 'KS-ESD', or 'RC-AUC'.")
-
-        if prob_method not in ['perm', 'gamma']:
-            raise ValueError("metic must be 'perm', or 'gamma'.")
+        if prob_method not in ['perm']:
+            raise ValueError("prob_method '{prob_method}' must be 'perm'.")
+        self.prob_method = prob_method
 
         if n_perm < 1000 and not symmetric:
-            if verbose:
-                print('Low numer of permutations can lead to inaccurate p-value estimation. Symmetric Gamma distribution enabled to increase accuracy.')
+            print('Low numer of permutations can lead to inaccurate p-value estimation. Symmetric Gamma distribution enabled to increase accuracy.')
             symmetric = True
         elif n_perm < 500:
-            if verbose:
-                print('Low numer of permutations can lead to inaccurate p-value estimation. Consider increasing number of permutations.')
+            print('Low numer of permutations can lead to inaccurate p-value estimation. Consider increasing number of permutations.')
             symmetric = True
+        self.n_perm = n_perm
+        self.symmetric = symmetric
+        self.n_process = n_process
+        self.sig_sep = sig_sep
+        self.verbose = verbose
+        self.save_permutation = save_permutation
+        self.get_pval = get_pval
+        self.get_lead_sigs = get_lead_sigs
 
+    def _check_sig_shape(self, sig_names, sig_vals, obs_names, center=True, add_noise=False, **kwargs):
         #2dim    
-        if sig_name.ndim == 1:
-            sig_name = sig_name.reshape(-1, 1)
-        if sig_val.ndim == 1:
-            sig_val = sig_val.reshape(-1, 1)
+        if sig_names.ndim == 1:
+            sig_names = sig_names.reshape(-1, 1)
+        if sig_names.ndim == 1:
+            sig_vals = sig_vals.reshape(-1, 1)
 
         # Ensure that sig_name and sig_val have the same number of rows
-        if sig_name.shape[0] != sig_val.shape[0]:
+        if sig_vals.shape[0] != sig_vals.shape[0]:
             raise ValueError("sig_name and sig_val must be same number of rows.")
-
 
         #IF the column of sig_name is 1 and the column of sig_val is greater than 1, 
         #repeat sig_name to match the number of columns of sig_val
-        if sig_name.shape[1] == 1 and sig_val.shape[1] > 1:
-            sig_name = np.repeat(sig_name, sig_val.shape[1], axis=1)
-        sig_name = deepcopy(sig_name)
-        sig_val = deepcopy(sig_val)
+        if sig_names.shape[1] == 1 and sig_vals.shape[1] > 1:
+            sig_names = np.repeat(sig_names, sig_vals.shape[1], axis=1)
+        sig_names = deepcopy(sig_names)
+        sig_vals = deepcopy(sig_vals)
         # sig_name: array (n_sig x n_sample), the name of signature
-        # sig_val: array (n_sig x n_sample), the value of signature, used for ranking the sig_name
+        # sig_vals: array (n_sig x n_sample), the value of signature, used for ranking the sig_name
+        sig_vals = rankscore.process_signature(sig_vals, center, add_noise)
+        
+        self.sig_names = sig_names
+        self.sig_vals = sig_vals
+        self.obs_names = obs_names
+        self.center = center
+        self.add_noise = add_noise
 
-        sig_val = rankscore.process_signature(sig_val, center=center, add_noise=add_noise)
-        if batch:
-            res = enrich_test.sig_enrich_batch(
-                    sig_name, sig_val, library, 
-                    sig_sep=sig_sep,
-                    metric=metric, 
-                    n_perm=n_perm, 
-                    prob_method=prob_method,
-                    processes=self.processes,
-                    verbose=verbose, 
-                    save_permutation=save_permutation,
-            )
-        else:
-            res = enrich_test.sig_enrich(
-                    sig_name, sig_val, library, 
-                    sig_sep=sig_sep,
-                    metric=metric, 
-                    n_perm=n_perm, 
-                    prob_method=prob_method,
-                    processes=self.processes,
-                    verbose=verbose, 
-                    save_permutation=save_permutation,
-            )
+    def _enrich(self):
+        res = enrich_test.enrich(self)
         return res
+    
+    def get_enrich_df(self, metric):
+        self._check_metric(metric)
+        return out.enrich_df(self, metric)
+
+    def pl_running_sum(self, metric, term, obs_id, **kwargs):
+        self._check_metric(metric)
+        self._check_term(term)
+        self._check_obs(obs_id)
+        return pl.running_sum(self, metric, term, obs_id, **kwargs)
+
+    def _check_metric(self, metric):
+        if metric not in ['KS-ES', 'KS-ESD', 'RC-AUC']:
+            raise ValueError(f"Metric '{metric}' must be 'KS-ES', 'KS-ESD', or 'RC-AUC'.")
+    
+    def _check_term(self, term):
+        if term not in self.term_names:
+            raise ValueError(f"The geneset '{term}' is not enriched.")
+        
+    def _check_obs(self, obs_id):
+        if obs_id not in self.obs_names:
+            raise ValueError(f"The obs_id '{obs_id}' is not in input rank_df.")
