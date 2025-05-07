@@ -53,6 +53,7 @@ def _enrich_df(obj, metric, ES, pval, lead_sigs_list):
     df_list.append(df)
     df = pd.concat(df_list)
     df = df.dropna(subset=[metric])
+    df = df.sort_values(by=metric, ascending=False)
     return df
 
 def print_enrich(obj, metric, t, o, **kwargs):
