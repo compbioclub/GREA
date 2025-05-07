@@ -47,6 +47,7 @@ plugins:
           options:
             docstring_style: numpy
   - search
+  - autorefs
 
 extra:
   encoding: 'utf-8'
@@ -55,10 +56,12 @@ markdown_extensions:
 - admonition
 - codehilite
 - pymdownx.superfences
+- attr_list
 
 nav:
   - 🏠 Home: index.md
   - 📥 Installation: installation.md
-  - 🔧 Tutorial: 
+  - 📖 Tutorial: 
     - Phenotype-level prerank enrichment for genes: tutorial/gene-pheno_prerank_enrich.ipynb
     - Phenotype-level prerank enrichment for gene interactions: tutorial/interaction-pheno_prerank_enrich.ipynb
+  - 📑 Reference: reference.md
