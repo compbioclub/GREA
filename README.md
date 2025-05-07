@@ -16,13 +16,21 @@ pip install git+https://github.com/compbioclub/GREA.git@dev
 
 ## 🚀 Quick Start
 
-### 1️⃣ Running the GREA Pipeline
+We are actively developing **GREA**, and welcome feedback from interested users.
 
-The following is an example of how to use GREA in a complete workflow:
+📄 Please refer to the documentation page for installation and usage details:  
+[https://compbioclub.github.io/GREA](https://compbioclub.github.io/GREA)
 
-```python
-from grea import GREA
-```
+### Tutorials
+
+- **Phenotype-level gene–interaction preranked enrichment**  
+  [https://compbioclub.github.io/GREA/tutorial/interaction-pheno_prerank_enrich/](https://compbioclub.github.io/GREA/tutorial/interaction-pheno_prerank_enrich/)
+
+- **Phenotype-level gene preranked enrichment**  
+  [https://compbioclub.github.io/GREA/tutorial/gene-pheno_prerank_enrich/](https://compbioclub.github.io/GREA/tutorial/gene-pheno_prerank_enrich/)
+
+We appreciate any suggestions to improve the software. Thank you for your interest!
+
 
 ## 📑 Citation
 
