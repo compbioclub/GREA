@@ -3,6 +3,7 @@ site_url: https://compbioclub.github.io/GREA
 theme:
   name: "material"
   features:
+    - content.code.copy
     - search.suggest
     - search.highlight
     - search.share\
@@ -32,6 +33,7 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://compbioclub.github.io/GREA/
+  encoding: 'utf-8'
 
 copyright: Copyright &copy; 2025 CompBioClub
 
@@ -49,8 +51,8 @@ plugins:
   - search
   - autorefs
 
-extra:
-  encoding: 'utf-8'
+extra_css:
+  - style/custom.css
 
 markdown_extensions:
 - admonition
