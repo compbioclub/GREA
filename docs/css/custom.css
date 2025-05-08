@@ -1,0 +1,15 @@
+/* Force notebook panda.dataframe table to scroll horizontally if overflow */
+.dataframe {
+    overflow-x: auto;
+    display: block;
+}
+.dataframe table {
+    width: 100%;
+    border-collapse: collapse;
+}
+/* Style sorting indicators */
+th[aria-sort]::after {
+    content: ' ⇅';
+    font-size: 0.8em;
+    color: #888;
+}
