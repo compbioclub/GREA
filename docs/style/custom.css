@@ -1,6 +1,0 @@
-/* Force notebook panda.dataframe table to scroll horizontally if overflow */
-.dataframe table {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
-  }

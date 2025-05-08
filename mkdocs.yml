@@ -52,7 +52,12 @@ plugins:
   - autorefs
 
 extra_css:
-  - style/custom.css
+  - css/custom.css
+
+extra_javascript:
+  - js/tablesort.min.js
+  - js/sort-init.js  
+
 
 markdown_extensions:
 - admonition
