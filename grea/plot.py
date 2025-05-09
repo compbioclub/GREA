@@ -140,7 +140,7 @@ def _pl_rs_rank(ax, obj, o):
                         ha='center', va='center')
 
     plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
-    plt.xlabel("Orded Signatures", fontsize=12)
+    plt.xlabel("Ordered Signatures", fontsize=12)
     plt.ylabel("Sig Rank Score", fontsize=12)
     ax.tick_params(labelsize=10)
 
