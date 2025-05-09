@@ -29,8 +29,10 @@ theme:
         name: Switch to light mode
 
 extra:
-  homepage: https://compbioclub.github.io/GREA/
+  homepage:
   social:
+    - icon: fontawesome/solid/house
+      link: https://compbio.club
     - icon: fontawesome/brands/github
       link: https://compbioclub.github.io/GREA/
   encoding: 'utf-8'
