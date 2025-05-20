@@ -22,12 +22,8 @@ def _get_metric_matrix(obj, metric):
             pval = obj.AUC_pval
     return ES, pval, lead_sigs
 
-def enrich_df(obj, metric):
-    ES, pval, lead_sigs = _get_metric_matrix(obj, metric)
-    return _enrich_df(obj, metric, ES, pval, lead_sigs)
-
-
-def _enrich_df(obj, metric, ES, pval, lead_sigs_list):
+def enrich_long_df(obj, metric):
+    ES, pval, lead_sigs_list = _get_metric_matrix(obj, metric)
     n_term, n_obs = ES.shape
     df_list = []
     for o in range(n_obs):
@@ -36,10 +32,11 @@ def _enrich_df(obj, metric, ES, pval, lead_sigs_list):
             res = {
                 'Term': obj.term_names[t],
                 'Obs': obj.obs_names[o],
-                'Prob_method': obj.prob_method,
                 metric: ES[t, o],
-                f'{metric}_pval': pval[t, o],
             }
+            if pval is not None:
+                res['Prob_method'] = obj.prob_method
+                res[f'{metric}_pval'] = pval[t, o]
             if lead_sigs_list:
                 lead_sigs = lead_sigs_list[t][o]
                 lead_n = len(lead_sigs)
@@ -48,12 +45,18 @@ def _enrich_df(obj, metric, ES, pval, lead_sigs_list):
                 res['Lead_sigs'] = lead_str
             res_list.append(res)
         df = pd.DataFrame(res_list)
-        df[f'{metric}_fdr'] = multipletests(df[f'{metric}_pval'], method='fdr_bh')[1]  
-        df[f'{metric}_sidak'] = multipletests(df[f'{metric}_pval'], method='sidak')[1]
+        if pval is not None:
+            df[f'{metric}_fdr'] = multipletests(df[f'{metric}_pval'], method='fdr_bh')[1]  
+            df[f'{metric}_sidak'] = multipletests(df[f'{metric}_pval'], method='sidak')[1]
     df_list.append(df)
     df = pd.concat(df_list)
     df = df.dropna(subset=[metric])
     df = df.sort_values(by=metric, ascending=False)
+    return df
+
+def enrich_wide_df(obj, metric):
+    ES, pval, lead_sigs_list = _get_metric_matrix(obj, metric)
+    df = pd.DataFrame(ES, columns=obj.obs_names, index=obj.term_names)
     return df
 
 def print_enrich(obj, metric, t, o, **kwargs):

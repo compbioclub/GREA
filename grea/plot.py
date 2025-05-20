@@ -14,7 +14,8 @@ from grea import out
 
 def running_sum(obj, metric, term, obs_id,
                 interactive_plot=False, 
-                hit_cmap='YlGnBu'):
+                hit_cmap='YlGnBu', 
+                title=''):
     """
     Plot the running sum for a given geneset and signature.
 
@@ -31,7 +32,7 @@ def running_sum(obj, metric, term, obs_id,
     gs = fig.add_gridspec(12, 11, wspace=0, hspace=0)
 
     curve_ax = fig.add_subplot(gs[0:7, 0:11],facecolor='white')
-    _pl_rs_curve(curve_ax, obj, metric, t, o)
+    _pl_rs_curve(curve_ax, obj, metric, t, o, title=title)
     
     if isinstance(hit_cmap, str):
         cm = plt.cm.get_cmap(hit_cmap)
@@ -51,7 +52,7 @@ def running_sum(obj, metric, term, obs_id,
     fig.patch.set_facecolor('white')
     return fig
 
-def _pl_rs_curve(ax, obj, metric, t, o):
+def _pl_rs_curve(ax, obj, metric, t, o, title=''):
 
     if metric.startswith('KS'):
         rs_matrix = obj.ks_rs
@@ -84,7 +85,10 @@ def _pl_rs_curve(ax, obj, metric, t, o):
         
     ax.grid(True, color='lightgray', linestyle='-', linewidth=0.5, alpha=0.5)
     ax.set(xticks=[])
-    plt.title(f"{obj.term_names[t]} \n {metric} - {obj.obs_names[o]}", fontsize=12)
+    text = f"{obj.term_names[t]} \n {metric} - {obj.obs_names[o]}"
+    if title:
+        text += f'\n{title}'
+    plt.title(text, fontsize=12)
     plt.ylabel(f"Running Sum ({metric.split('-')[0]})", fontsize=12)
 
 

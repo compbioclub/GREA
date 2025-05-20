@@ -41,13 +41,18 @@ def get_overlap(obj):
     """    
     Args:
         obj.sig_names: np.ndarray of shape [n_sig, n_obs], strings of sig_name separated by sig_sep
-        obj.term_genes_list: List[List[str]], length = n_term, each is a set of genes
         obj.sig_sep: separator used in sig_name
         
     Returns:
+        obj.term_genes_list: List[List[str]], length = n_term, each is a set of genes
         obj.overlap_ratios: np.ndarray of shape [n_term, n_sig, n_obs]
         obj.n_hits: np.ndarray of shape [n_term, n_obs] # number of sigs hit in the obs
     """
+
+    obj.term_names = list(obj.term_dict.keys()) 
+    obj.term_genes_list = [obj.term_dict[t] for t in obj.term_names]  
+    # n_terms
+
     n_sig, n_obs = obj.sig_names.shape
     n_term = len(obj.term_genes_list)
 
@@ -57,9 +62,13 @@ def get_overlap(obj):
     overlap_ratio_dict = {}
     for t, lib_genes in enumerate(obj.term_genes_list):
         lib_genes = set(lib_genes)
+
+            
         for j in range(n_obs):
             for i in range(n_sig):
                 sig_name = obj.sig_names[i, j]
+                if obj.sig_upper:
+                    sig_name = sig_name.upper()
                 if (t, sig_name) in overlap_ratio_dict:
                     ratio = overlap_ratio_dict[(t, sig_name)]
                 else:

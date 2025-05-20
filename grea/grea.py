@@ -18,10 +18,20 @@ def pheno_prerank_enrich(rank_df, libraries, **kwargs):
     obj._enrich()
     return obj    
 
+def obs_prerank_enrich(rank_df, libraries, **kwargs):
+    obj = _GREA(libraries, get_pval=False, **kwargs)
+    sig_names = rank_df.index.to_numpy()
+    sig_vals = rank_df.to_numpy()
+    obs_names = rank_df.columns.to_list()
+    obj._check_sig_shape(sig_names, sig_vals, obs_names, **kwargs)
+    obj._enrich()
+    return obj    
+
+
 class _GREA(object):
 
     def __init__(self, libraries, seed=0, prob_method='perm', 
-                 sig_sep=',', verbose=True,
+                 sig_sep=',', verbose=True, sig_upper=True,
                  min_size=5, max_size=1000, n_process=4,
                  n_perm=1000, symmetric=False,
                  get_pval=True, get_lead_sigs=True,
@@ -40,25 +50,22 @@ class _GREA(object):
         np.random.seed(seed)
         self.seed = seed
 
-        if prob_method not in ['perm']:
-            raise ValueError("prob_method '{prob_method}' must be 'perm'.")
+        if prob_method not in ['perm', None]:
+            raise ValueError("prob_method '{prob_method}' must be 'perm', 'None'.")
         self.prob_method = prob_method
 
-        if n_perm < 1000 and not symmetric:
-            print('Low numer of permutations can lead to inaccurate p-value estimation. Symmetric Gamma distribution enabled to increase accuracy.')
-            symmetric = True
-        elif n_perm < 500:
-            print('Low numer of permutations can lead to inaccurate p-value estimation. Consider increasing number of permutations.')
-            symmetric = True
+        symmetric = self._check_n_perm(n_perm, symmetric)
         self.n_perm = n_perm
         self.symmetric = symmetric
+
         self.n_process = n_process
         self.sig_sep = sig_sep
         self.verbose = verbose
         self.save_permutation = save_permutation
         self.get_pval = get_pval
         self.get_lead_sigs = get_lead_sigs
-
+        self.sig_upper = sig_upper
+        
     def _check_sig_shape(self, sig_names, sig_vals, obs_names, center=True, add_noise=False, **kwargs):
         #2dim    
         if sig_names.ndim == 1:
@@ -90,16 +97,31 @@ class _GREA(object):
         res = enrich_test.enrich(self)
         return res
     
-    def get_enrich_df(self, metric):
+    def get_enrich_results(self, metric):
         self._check_metric(metric)
-        return out.enrich_df(self, metric)
-
+        return out.enrich_long_df(self, metric)
+    
+    def get_enrich_score(self, metric):
+        self._check_metric(metric)
+        return out.enrich_wide_df(self, metric)
+    
     def pl_running_sum(self, metric, term, obs_id, **kwargs):
         self._check_metric(metric)
         self._check_term(term)
         self._check_obs(obs_id)
         return pl.running_sum(self, metric, term, obs_id, **kwargs)
 
+    def _check_n_perm(self, n_perm, symmetric):
+        if n_perm is None:
+            return None
+        if n_perm < 1000 and not symmetric:
+            print('Low numer of permutations can lead to inaccurate p-value estimation. Symmetric Gamma distribution enabled to increase accuracy.')
+            symmetric = True
+        elif n_perm < 500:
+            print('Low numer of permutations can lead to inaccurate p-value estimation. Consider increasing number of permutations.')
+            symmetric = True
+        return symmetric
+    
     def _check_metric(self, metric):
         if metric not in ['KS-ES', 'KS-ESD', 'RC-AUC']:
             raise ValueError(f"Metric '{metric}' must be 'KS-ES', 'KS-ESD', or 'RC-AUC'.")

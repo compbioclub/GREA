@@ -19,9 +19,6 @@ import grea.prob as prob
 
 def enrich(obj):
 
-    obj.term_names = list(obj.term_dict.keys()) 
-    obj.term_genes_list = [obj.term_dict[t] for t in obj.term_names]  # n_terms
-
     enrich_signal.get_overlap(obj) 
     enrich_signal.get_sorted(obj)
     enrich_signal.get_running_sum(obj)  
