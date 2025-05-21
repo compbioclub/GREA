@@ -69,6 +69,7 @@ def get_overlap(obj):
                 sig_name = obj.sig_names[i, j]
                 if obj.sig_upper:
                     sig_name = sig_name.upper()
+
                 if (t, sig_name) in overlap_ratio_dict:
                     ratio = overlap_ratio_dict[(t, sig_name)]
                 else:

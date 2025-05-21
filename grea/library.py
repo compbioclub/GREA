@@ -9,7 +9,9 @@ import ssl
 from copy import deepcopy
 from bioservices import KEGG
 
-def get_library_from_names(libraries, min_size=None, max_size=None):
+def get_library_from_names(
+        libraries, add_lib_key=True,
+        min_size=None, max_size=None):
     mylibs = list_libraries() + ['KO_PATHWAY_KO_TERM']
     term_dict = {}
     for key in libraries:
@@ -25,7 +27,10 @@ def get_library_from_names(libraries, min_size=None, max_size=None):
             if max_size is not None and len(genes) > max_size:
                 print(f'---WARMING: "{key}-{term}" has {len(genes)} genes, larger than max_size {max_size}, filter it out.')
                 continue
-            mylib[f'{key}|{term}'] = genes
+            if add_lib_key:
+                mylib[f'{key}|{term}'] = genes
+            else:
+                mylib[term] = genes
         n_term = len(mylib.keys())
         print(f'---Finished: Load {key} with {n_term} terms.')
         term_dict.update(mylib)
@@ -75,6 +80,8 @@ def list_libraries():
     #print(get_config())
     return(load_json(get_config()["LIBRARY_LIST_URL"])["library"])
 
+# https://data.broadinstitute.org/gsea-msigdb/msigdb/release/
+# v1.0.6 now have the MSlGDB api to download mouse GiT file with gene symbol/entrezid directory
 def load_library(library: str, overwrite: bool = False, verbose: bool = False) -> str:
     if not os.path.exists(get_data_path()+library or overwrite):
         if verbose:
@@ -133,7 +140,7 @@ def load_json(url):
 def get_config():
     config_url = os.path.join(
         os.path.dirname(__file__),
-        'data/config.json')
+        'db/config.json')
     with open(config_url) as json_file:
         data = json.load(json_file)
     return(data)
@@ -141,7 +148,7 @@ def get_config():
 def get_data_path() -> str:
     path = os.path.join(
         os.path.dirname(__file__),
-        'data/'
+        'db/'
     )
     return(path)
 

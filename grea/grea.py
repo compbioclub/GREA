@@ -32,13 +32,13 @@ class _GREA(object):
 
     def __init__(self, libraries, seed=0, prob_method='perm', 
                  sig_sep=',', verbose=True, sig_upper=True,
-                 min_size=5, max_size=1000, n_process=4,
+                 add_lib_key=True, min_size=5, max_size=1000, n_process=4,
                  n_perm=1000, symmetric=False,
                  get_pval=True, get_lead_sigs=True,
                  save_permutation: bool=False) -> None:
 
         if type(libraries) == list:
-            self.term_dict = library.get_library_from_names(libraries, min_size=min_size, max_size=max_size)
+            self.term_dict = library.get_library_from_names(libraries, add_lib_key=add_lib_key, min_size=min_size, max_size=max_size)
         elif type(libraries) == dict:
             self.term_dict = libraries
         else:
