@@ -83,6 +83,15 @@ def get_overlap(obj):
                     obj.overlap_ratios[t, i, j] = ratio
                     obj.n_hits[t, j] += 1
 
+    # check overlap ratio
+    zero_rate = np.sum(obj.overlap_ratios == 0)/(n_term*n_sig*n_obs)
+    msg = f'---WARMING: {round(zero_rate, 2)*100}% of entries has zero overlap ratio.\n'
+    if zero_rate > 0.99:
+        msg += f'Please check the consistency (upper/lower case) of signature names in rand_df and libraries.\n'
+        msg += f'Current rand_df sig name: {obj.sig_names[0][0]}, library sig name: {obj.term_genes_list[0][0]}\n'
+        msg += f'Current setting - sig_upper={obj.sig_upper}'
+    print(msg)
+
 
 def get_sorted(obj):
     """
