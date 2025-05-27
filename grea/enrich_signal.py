@@ -120,7 +120,7 @@ def get_running_sum(obj):
         obj.rc_rs: [n_term, n_sig, n_obs]
         obj.sorted_or: [n_term, n_sig, n_obs]
     """
-    obj.ks_rs, obj.rc_rs, obj.sorted_or = _get_running_sum(obj.sorted_abs_vals, obj.overlap_ratios, obj.sort_indices)
+    obj.ks_rs, obj.rc_rs, obj.nrc_rs, obj.sorted_or = _get_running_sum(obj.sorted_abs_vals, obj.overlap_ratios, obj.sort_indices)
 
 
 def _get_running_sum(sorted_abs_vals, overlap_ratios, sort_indices):
@@ -133,6 +133,7 @@ def _get_running_sum(sorted_abs_vals, overlap_ratios, sort_indices):
     Output:
         ks_rs: [n_term, n_sig, n_obs]
         rc_rs: [n_term, n_sig, n_obs]
+        nrc_rs: [n_term, n_sig, n_obs]
         sorted_or: [n_term, n_sig, n_obs]
     """
     _, n_sig, _ = overlap_ratios.shape
@@ -160,9 +161,11 @@ def _get_running_sum(sorted_abs_vals, overlap_ratios, sort_indices):
     score = sorted_or * sorted_abs_vals[None, :, :] * norm_hit[:, None, :] - sorted_miss * norm_miss[:, None, :]
     ks_rs = np.cumsum(score, axis=1)  # cumsum over sigs
     # RC
-    score = sorted_or * sorted_abs_vals[None, :, :] * norm_hit[:, None, :]
+    score = sorted_or * sorted_abs_vals[None, :, :] 
     rc_rs = np.cumsum(score, axis=1)  # cumsum over sigs
-    return ks_rs, rc_rs, sorted_or
+    score = score * norm_hit[:, None, :]
+    nrc_rs = np.cumsum(score, axis=1)  # cumsum over sigs
+    return ks_rs, rc_rs, nrc_rs, sorted_or
 
 def get_running_sum_null(obj):
     """
@@ -183,8 +186,8 @@ def get_running_sum_null(obj):
     term_idx = np.arange(n_term)[:, None, None]
     obs_idx = np.arange(n_obs)[None, None, :]
     shuffled_or =  obj.overlap_ratios[term_idx, random_indices, obs_idx]  # [n_term, n_sig, n_obs]
-    ks_rs, rc_rs, _ = _get_running_sum(obj.sorted_abs_vals, shuffled_or, obj.sort_indices)
-    return ks_rs, rc_rs
+    ks_rs, rc_rs, nrc_rs, _ = _get_running_sum(obj.sorted_abs_vals, shuffled_or, obj.sort_indices)
+    return ks_rs, rc_rs, nrc_rs
 
 
 
@@ -202,6 +205,7 @@ def get_metrics_null(obj):
         obj.null_ESD: np.ndarray of shape [n_perm, n_term, n_obs]
         obj.null_peak: np.ndarray of shape [n_perm, n_term, n_obs]
         obj.null_AUC: np.ndarray of shape [n_perm, n_term, n_obs]
+        obj.null_nAUC = np.zeros((obj.n_perm, n_term, n_obs))
     """
     n_term, _, n_obs = obj.sorted_or.shape
 
@@ -209,9 +213,10 @@ def get_metrics_null(obj):
     obj.null_ESD = np.zeros((obj.n_perm, n_term, n_obs))
     obj.null_peak = np.zeros((obj.n_perm, n_term, n_obs))
     obj.null_AUC = np.zeros((obj.n_perm, n_term, n_obs))
+    obj.null_nAUC = np.zeros((obj.n_perm, n_term, n_obs))
 
     for i in range(obj.n_perm):
-        ks_rs, rc_rs = get_running_sum_null(obj)
+        ks_rs, rc_rs, nrc_rs = get_running_sum_null(obj)
         if obj.save_permutation:
             if not os.path.exists("permutation_test"):
                 os.makedirs("permutation_test")       
@@ -225,8 +230,9 @@ def get_metrics_null(obj):
         obj.null_ESD[i, :] = ESD
         obj.null_peak[i, :] = peak
         AUC = _get_AUC(rc_rs)  # AUC per [n_term, n_obs]
+        nAUC = _get_AUC(nrc_rs)
         obj.null_AUC[i, :] = AUC
-    
+        obj.null_nAUC[i, :] = nAUC
 
 def get_ES_ESD(obj):
     """
@@ -271,10 +277,13 @@ def get_AUC(obj):
     Calculate AUC for each (n_term, n_obs) based on running sum matrix.
     Args:
         obj.rc_rs: np.ndarray of shape [n_term, n_sig, n_obs]
+        obj.nrc_rs: np.ndarray of shape [n_term, n_sig, n_obs]
     Returns:
         obj.AUC: np.ndarray of shape [n_term, n_obs]
+        obj.nAUC: np.ndarray of shape [n_term, n_obs]
     """
     obj.AUC = _get_AUC(obj.rc_rs)
+    obj.nAUC = _get_AUC(obj.nrc_rs)
 
 
 def _get_AUC(rc_rs):

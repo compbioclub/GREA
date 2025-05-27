@@ -34,6 +34,7 @@ class _GREA(object):
                  sig_sep=',', verbose=True, sig_upper=True,
                  add_lib_key=True, min_size=5, max_size=1000, n_process=4,
                  n_perm=1000, symmetric=False,
+                 center=True, add_noise=False,
                  get_pval=True, get_lead_sigs=True,
                  save_permutation: bool=False) -> None:
 
@@ -65,6 +66,8 @@ class _GREA(object):
         self.get_pval = get_pval
         self.get_lead_sigs = get_lead_sigs
         self.sig_upper = sig_upper
+        self.center = center
+        self.add_noise = add_noise
         
     def _check_sig_shape(self, sig_names, sig_vals, obs_names, center=True, add_noise=False, **kwargs):
         #2dim    
@@ -123,8 +126,8 @@ class _GREA(object):
         return symmetric
     
     def _check_metric(self, metric):
-        if metric not in ['KS-ES', 'KS-ESD', 'RC-AUC']:
-            raise ValueError(f"Metric '{metric}' must be 'KS-ES', 'KS-ESD', or 'RC-AUC'.")
+        if metric not in ['KS-ES', 'KS-ESD', 'RC-AUC', 'RC-nAUC']:
+            raise ValueError(f"Metric '{metric}' must be 'KS-ES', 'KS-ESD', 'RC-nAUC', or 'RC-nAUC'.")
     
     def _check_term(self, term):
         if term not in self.term_names:

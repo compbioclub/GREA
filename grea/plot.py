@@ -56,8 +56,10 @@ def _pl_rs_curve(ax, obj, metric, t, o, title=''):
 
     if metric.startswith('KS'):
         rs_matrix = obj.ks_rs
-    else:
+    elif metric == 'RC-AUC':
         rs_matrix = obj.rc_rs
+    elif metric == 'RC-nAUC':
+        rs_matrix = obj.nrc_rs
     obs_rs = rs_matrix[t, :, o]
 
     for spine in ax.spines.values():
@@ -211,12 +213,7 @@ def top_table(sig_name, sig_val, library, result, n=10, center=True, interactive
         ln = np.linspace(-0.1,1,top_n+1)[::-1]
         ax.hlines(y=ln, xmin=0, xmax=1, color="black")
 
-        if plot_type == 'ES':
-            ax.text(0.03, 1.03, "NES", fontsize=16)
-        elif plot_type == 'ESD':
-            ax.text(0.03, 1.03, "NESD", fontsize=16)
-        elif plot_type == 'AUC':
-            ax.text(0.03, 1.03, "AUC", fontsize=16)
+        ax.text(0.03, 1.03, "AUC", fontsize=16)
         
 
         ax.text(0.84, 1.03, "SET", fontsize=16)
@@ -229,7 +226,8 @@ def top_table(sig_name, sig_val, library, result, n=10, center=True, interactive
                 value = sample_result.iloc[i]["nesd"]
             elif plot_type == 'AUC':
                 value = sample_result.iloc[i]["AUC"]
-
+            elif plot_type == 'nAUC':
+                value = sample_result.iloc[i]["nAUC"]
         
             ax.text(0.03, (ln[i]+ln[i+1])/2, "{:.3f}".format(value), verticalalignment='center')
             ax.text(0.84, (ln[i]+ln[i+1])/2, sample_result.index[i], verticalalignment='center')

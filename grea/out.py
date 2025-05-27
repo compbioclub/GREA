@@ -20,6 +20,10 @@ def _get_metric_matrix(obj, metric):
         ES = obj.AUC
         if obj.get_pval:
             pval = obj.AUC_pval
+    if metric == 'RC-nAUC':
+        ES = obj.nAUC
+        if obj.get_pval:
+            pval = obj.nAUC_pval
     return ES, pval, lead_sigs
 
 def enrich_long_df(obj, metric):
