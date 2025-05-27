@@ -70,11 +70,11 @@ class _GREA(object):
         #2dim    
         if sig_names.ndim == 1:
             sig_names = sig_names.reshape(-1, 1)
-        if sig_names.ndim == 1:
+        if sig_vals.ndim == 1:
             sig_vals = sig_vals.reshape(-1, 1)
 
         # Ensure that sig_name and sig_val have the same number of rows
-        if sig_vals.shape[0] != sig_vals.shape[0]:
+        if sig_names.shape[0] != sig_vals.shape[0]:
             raise ValueError("sig_name and sig_val must be same number of rows.")
 
         #IF the column of sig_name is 1 and the column of sig_val is greater than 1, 

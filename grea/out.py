@@ -48,7 +48,7 @@ def enrich_long_df(obj, metric):
         if pval is not None:
             df[f'{metric}_fdr'] = multipletests(df[f'{metric}_pval'], method='fdr_bh')[1]  
             df[f'{metric}_sidak'] = multipletests(df[f'{metric}_pval'], method='sidak')[1]
-    df_list.append(df)
+        df_list.append(df)
     df = pd.concat(df_list)
     df = df.dropna(subset=[metric])
     df = df.sort_values(by=metric, ascending=False)
