@@ -126,8 +126,8 @@ class _GREA(object):
         return symmetric
     
     def _check_metric(self, metric):
-        if metric not in ['KS-ES', 'KS-ESD', 'RC-AUC', 'RC-nAUC']:
-            raise ValueError(f"Metric '{metric}' must be 'KS-ES', 'KS-ESD', 'RC-nAUC', or 'RC-nAUC'.")
+        if metric not in ['KS-ES', 'KS-ESD', 'RC-AUC', 'RC-nAUC', 'nRC-AUC']:
+            raise ValueError(f"Metric '{metric}' must be 'KS-ES', 'KS-ESD', 'RC-nAUC', 'RC-nAUC', 'nRC-AUC'.")
     
     def _check_term(self, term):
         if term not in self.term_names:

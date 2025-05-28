@@ -2,6 +2,7 @@
 from statsmodels.stats.multitest import multipletests
 import pandas as pd
 
+
 def _get_metric_matrix(obj, metric):
     lead_sigs, pval = None, None
     if metric == 'KS-ES':
@@ -17,14 +18,19 @@ def _get_metric_matrix(obj, metric):
         if obj.get_pval:
             pval = obj.ESD_pval
     if metric == 'RC-AUC':
-        ES = obj.AUC
+        ES = obj.RC_AUC
         if obj.get_pval:
-            pval = obj.AUC_pval
+            pval = obj.RC_AUC_pval
     if metric == 'RC-nAUC':
-        ES = obj.nAUC
+        ES = obj.RC_nAUC
         if obj.get_pval:
-            pval = obj.nAUC_pval
+            pval = obj.RC_nAUC_pval
+    if metric == 'nRC-AUC':
+        ES = obj.nRC_AUC
+        if obj.get_pval:
+            pval = obj.nRC_AUC_pval
     return ES, pval, lead_sigs
+
 
 def enrich_long_df(obj, metric):
     ES, pval, lead_sigs_list = _get_metric_matrix(obj, metric)

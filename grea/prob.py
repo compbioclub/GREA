@@ -9,17 +9,21 @@ def get_prob(obj):
         obj.AUC: np.ndarray of shape [n_term, n_obs]
         obj.null_ES: np.ndarray of shape [n_perm, n_term, n_obs]
         obj.null_ESD: np.ndarray of shape [n_perm, n_term, n_obs]
-        obj.null_AUC: np.ndarray of shape [n_perm, n_term, n_obs]
-        obj.null_nAUC: np.ndarray of shape [n_perm, n_term, n_obs]
+        obj.null_RC_AUC: np.ndarray of shape [n_perm, n_term, n_obs]
+        obj.null_RC_nAUC: np.ndarray of shape [n_perm, n_term, n_obs]
+        obj.null_nRC_AUC: np.ndarray of shape [n_perm, n_term, n_obs]
     returns:
         obj.ES_pval: [n_term, n_obs] 
         obj.ESD_pval: [n_term, n_obs] 
-        obj.AUC_pval: [n_term, n_obs]   
+        obj.RC_AUC_pval: [n_term, n_obs]   
+        obj.RC_nAUC_pval: [n_term, n_obs]   
+        obj.nRC_AUC_pval: [n_term, n_obs]   
     """
     obj.ES_pval = _get_prob(obj.ES, obj.null_ES, prob_method='sign'+obj.prob_method)    # [n_term, n_obs]
     obj.ESD_pval = _get_prob(obj.ESD, obj.null_ESD, prob_method='sign'+obj.prob_method) # [n_term, n_obs]
-    obj.AUC_pval = _get_prob(obj.AUC, obj.null_AUC, prob_method=obj.prob_method)
-    obj.nAUC_pval = _get_prob(obj.nAUC, obj.null_nAUC, prob_method=obj.prob_method)
+    obj.RC_AUC_pval = _get_prob(obj.RC_AUC, obj.null_RC_AUC, prob_method=obj.prob_method)
+    obj.RC_nAUC_pval = _get_prob(obj.RC_nAUC, obj.null_RC_nAUC, prob_method=obj.prob_method)
+    obj.nRC_AUC_pval = _get_prob(obj.nRC_AUC, obj.null_nRC_AUC, prob_method=obj.prob_method)
 
 def _get_prob(obs, nulls, prob_method):
     """

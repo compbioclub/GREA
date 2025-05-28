@@ -148,7 +148,7 @@ def get_config():
 def get_data_path() -> str:
     path = os.path.join(
         os.path.dirname(__file__),
-        'data/'
+        'db/'
     )
     return(path)
 

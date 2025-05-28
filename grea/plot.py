@@ -56,10 +56,11 @@ def _pl_rs_curve(ax, obj, metric, t, o, title=''):
 
     if metric.startswith('KS'):
         rs_matrix = obj.ks_rs
-    elif metric == 'RC-AUC':
+    elif metric.startswith('RC'):
         rs_matrix = obj.rc_rs
-    elif metric == 'RC-nAUC':
+    elif metric.startswith('nRC'):
         rs_matrix = obj.nrc_rs
+
     obs_rs = rs_matrix[t, :, o]
 
     for spine in ax.spines.values():

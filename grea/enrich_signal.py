@@ -179,6 +179,7 @@ def get_running_sum_null(obj):
     Returns:
         ks_rs: [n_term, n_sig, n_obs]
         rc_rs: [n_term, n_sig, n_obs]
+        nrc_rs: [n_term, n_sig, n_obs]
     """
     n_term, n_sig, n_obs =  obj.overlap_ratios.shape
     random_indices = np.argsort(np.random.rand(n_term, n_sig, n_obs), axis=1)  # [n_term, n_sig, n_obs]
@@ -204,16 +205,18 @@ def get_metrics_null(obj):
         obj.null_ES: np.ndarray of shape [n_perm, n_term, n_obs]
         obj.null_ESD: np.ndarray of shape [n_perm, n_term, n_obs]
         obj.null_peak: np.ndarray of shape [n_perm, n_term, n_obs]
-        obj.null_AUC: np.ndarray of shape [n_perm, n_term, n_obs]
-        obj.null_nAUC = np.zeros((obj.n_perm, n_term, n_obs))
+        obj.null_RC_AUC: np.ndarray of shape [n_perm, n_term, n_obs]
+        obj.null_RC_nAUC = np.zeros((obj.n_perm, n_term, n_obs))
+        obj.null_nRC_AUC = np.zeros((obj.n_perm, n_term, n_obs))
     """
     n_term, _, n_obs = obj.sorted_or.shape
 
     obj.null_ES = np.zeros((obj.n_perm, n_term, n_obs))
     obj.null_ESD = np.zeros((obj.n_perm, n_term, n_obs))
     obj.null_peak = np.zeros((obj.n_perm, n_term, n_obs))
-    obj.null_AUC = np.zeros((obj.n_perm, n_term, n_obs))
-    obj.null_nAUC = np.zeros((obj.n_perm, n_term, n_obs))
+    obj.null_RC_AUC = np.zeros((obj.n_perm, n_term, n_obs))
+    obj.null_RC_nAUC = np.zeros((obj.n_perm, n_term, n_obs))
+    obj.null_nRC_AUC = np.zeros((obj.n_perm, n_term, n_obs))
 
     for i in range(obj.n_perm):
         ks_rs, rc_rs, nrc_rs = get_running_sum_null(obj)
@@ -222,17 +225,22 @@ def get_metrics_null(obj):
                 os.makedirs("permutation_test")       
             np.save(os.path.join("permutation_test", f"permutation_{i}_ks_running_sum.npy"), ks_rs)
             np.save(os.path.join("permutation_test", f"permutation_{i}_rc_running_sum.npy"), rc_rs)
+            np.save(os.path.join("permutation_test", f"permutation_{i}_nrc_running_sum.npy"), nrc_rs)
             print(f"Saved permutation {i} running sum to permutation_test/permutation_{i}_ks_running_sum.npy")
             print(f"Saved permutation {i} running sum to permutation_test/permutation_{i}_rc_running_sum.npy")
+            print(f"Saved permutation {i} running sum to permutation_test/permutation_{i}_nrc_running_sum.npy")
 
         ES, ESD, peak = _get_ES_ESD(ks_rs)
         obj.null_ES[i, :] = ES
         obj.null_ESD[i, :] = ESD
         obj.null_peak[i, :] = peak
-        AUC = _get_AUC(rc_rs)  # AUC per [n_term, n_obs]
-        nAUC = _get_AUC(nrc_rs)
-        obj.null_AUC[i, :] = AUC
-        obj.null_nAUC[i, :] = nAUC
+        RC_AUC = _get_AUC(rc_rs)  # AUC per [n_term, n_obs]
+        RC_nAUC = RC_AUC/obj.n_hits
+        nRC_AUC = _get_AUC(nrc_rs)
+        obj.null_RC_AUC[i, :] = RC_AUC
+        obj.null_RC_nAUC[i, :] = RC_nAUC
+        obj.null_nRC_AUC[i, :] = nRC_AUC
+
 
 def get_ES_ESD(obj):
     """
@@ -279,12 +287,13 @@ def get_AUC(obj):
         obj.rc_rs: np.ndarray of shape [n_term, n_sig, n_obs]
         obj.nrc_rs: np.ndarray of shape [n_term, n_sig, n_obs]
     Returns:
-        obj.AUC: np.ndarray of shape [n_term, n_obs]
-        obj.nAUC: np.ndarray of shape [n_term, n_obs]
+        obj.RC_AUC: np.ndarray of shape [n_term, n_obs]
+        obj.RC_nAUC: np.ndarray of shape [n_term, n_obs]
+        obj.nRC_AUC: np.ndarray of shape [n_term, n_obs]
     """
-    obj.AUC = _get_AUC(obj.rc_rs)
-    obj.nAUC = _get_AUC(obj.nrc_rs)
-
+    obj.RC_AUC = _get_AUC(obj.rc_rs)
+    obj.RC_nAUC = obj.RC_AUC/obj.n_hits
+    obj.nRC_AUC = _get_AUC(obj.nrc_rs)
 
 def _get_AUC(rc_rs):
     """
@@ -293,6 +302,7 @@ def _get_AUC(rc_rs):
         rs_matrix: np.ndarray of shape [n_term, n_sig, n_obs]
     Returns:
         AUC: np.ndarray of shape [n_term, n_obs]
+        nAUC: np.ndarray of shape [n_term, n_obs]
     """
     _, n_sig, _ = rc_rs.shape
     rc_rs = rc_rs.astype(float)
