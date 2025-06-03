@@ -4,7 +4,12 @@ blitzgsea/
 test/
 build/
 grea.egg-info
-DATA/
+*data/
 result/
 site/
 *backup*
+*ipynb
+*html
+*png
+.DS_Store
+*json
