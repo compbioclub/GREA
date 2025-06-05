@@ -100,10 +100,15 @@ def get_sorted(obj):
         obj.sig_names: np.ndarray [n_sig, n_obs]
     Returns:
         obj.sort_indices: np.ndarray [n_sig, n_obs]
+        obj.sig_rank: np.ndarray [n_sig, n_obs] the rank order of sig values in original order
         obj.sorted_sig_vals: np.ndarray [n_sig, n_obs]
         obj.sorted_abs_vals: np.ndarray [n_sig, n_obs]
     """
+    n_sig, n_obs = obj.sig_vals.shape
     obj.sort_indices = np.argsort(obj.sig_vals, axis=0)[::-1, :]  
+    #obj.sig_rank = np.empty_like(obj.sort_indices)
+    #obj.sig_rank[obj.sort_indices, np.arange(n_obs)] = np.arange(n_sig)[:, None] 
+
     obj.sorted_sig_vals = np.take_along_axis(obj.sig_vals, obj.sort_indices, axis=0)  
     obj.sorted_abs_vals = np.abs(obj.sorted_sig_vals)
 

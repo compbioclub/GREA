@@ -36,6 +36,7 @@ class _GREA(object):
                  n_perm=1000, symmetric=False,
                  center=True, add_noise=False,
                  get_pval=True, get_lead_sigs=True,
+                 stop=None,
                  save_permutation: bool=False) -> None:
 
         if type(libraries) == list:
@@ -50,7 +51,7 @@ class _GREA(object):
         random.seed(seed)
         np.random.seed(seed)
         self.seed = seed
-
+        self.stop = stop
         if prob_method not in ['perm', None]:
             raise ValueError("prob_method '{prob_method}' must be 'perm', 'None'.")
         self.prob_method = prob_method

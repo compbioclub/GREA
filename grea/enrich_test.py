@@ -22,12 +22,13 @@ def enrich(obj):
     enrich_signal.get_overlap(obj) 
     enrich_signal.get_sorted(obj)
     enrich_signal.get_running_sum(obj)  
+    if obj.stop == 'running_sum':
+        return
+    
     enrich_signal.get_ES_ESD(obj)  
-    enrich_signal.get_AUC(obj)
-
     if obj.get_lead_sigs:
         enrich_signal.get_leading_edge(obj)  
-
+    enrich_signal.get_AUC(obj)
     # === p-values ===
     if obj.get_pval:
         enrich_signal.get_metrics_null(obj)
