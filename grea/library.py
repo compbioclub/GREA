@@ -6,13 +6,19 @@ import json
 import os
 import re
 import ssl
+import pandas as pd
 from copy import deepcopy
 from bioservices import KEGG
 
 def get_library_from_names(
         libraries, add_lib_key=True,
         min_size=None, max_size=None):
-    mylibs = list_libraries() + ['KO_PATHWAY_KO_TERM']
+    mylibs = list_libraries()
+    mylibs += ['KO_PATHWAY_KO_TERM']  
+    mylibs += ['Mouse.MitoCarta3.0'] 
+    mylibs += ['c5.go.bp.v2025.1.Hs', 'c5.go.cc.v2025.1.Hs', 'c5.go.mf.v2025.1.Hs']
+    mylibs += ['m5.go.bp.v2025.1.Mm', 'm5.go.cc.v2025.1.Mm', 'm5.go.mf.v2025.1.Mm']
+
     term_dict = {}
     for key in libraries:
         if key not in mylibs:
@@ -48,6 +54,11 @@ def get_library(library: str):
     """
     if library == 'KO_PATHWAY_KO_TERM':
         return get_ko_library()
+    elif library == 'Mouse.MitoCarta3.0':
+        return get_mt_library()
+    elif library.startswith('c5') or library.startswith('m5'):
+        wdr = os.path.dirname(os.path.abspath(__file__))
+        return read_gmt(f'{wdr}/db/{library}.symbols.gmt')
     else:
         return read_gmt(load_library(library))
 
@@ -75,6 +86,11 @@ def get_ko_library():
         name = kegg.get(pathway).split('\n')[1].replace('NAME', '').strip()
         library[name] = pathway_ko_dict[pathway]
     return library
+
+def get_mt_library():
+    wdr = os.path.dirname(os.path.abspath(__file__))
+    return pd.read_csv(f'{wdr}/db/Mouse.MitoCarta3.0.csv', index_col=0)['Genes'].apply(lambda x: x.split(', ')).to_dict()
+
 
 def list_libraries():
     #print(get_config())

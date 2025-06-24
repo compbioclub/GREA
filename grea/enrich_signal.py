@@ -55,14 +55,12 @@ def get_overlap(obj):
 
     n_sig, n_obs = obj.sig_names.shape
     n_term = len(obj.term_genes_list)
-
     obj.overlap_ratios = np.zeros((n_term, n_sig, n_obs), dtype=np.float32)
     obj.n_hits = np.zeros((n_term, n_obs), dtype=np.int32)
 
     overlap_ratio_dict = {}
     for t, lib_genes in enumerate(obj.term_genes_list):
         lib_genes = set(lib_genes)
-
             
         for j in range(n_obs):
             for i in range(n_sig):
@@ -84,12 +82,13 @@ def get_overlap(obj):
                     obj.n_hits[t, j] += 1
 
     # check overlap ratio
-    zero_rate = np.sum(obj.overlap_ratios == 0)/(n_term*n_sig*n_obs)
-    msg = f'---WARMING: {round(zero_rate, 2)*100}% of entries has zero overlap ratio.\n'
-    if zero_rate > 0.99:
-        msg += f'Please check the consistency (upper/lower case) of signature names in rand_df and libraries.\n'
-        msg += f'Current rand_df sig name: {obj.sig_names[0][0]}, library sig name: {obj.term_genes_list[0][0]}\n'
-        msg += f'Current setting - sig_upper={obj.sig_upper}'
+    n_nonzero = np.sum(obj.overlap_ratios != 0)
+    n_nonzero_rate = n_nonzero/(n_term*n_sig*n_obs)
+    msg = f'---[INFO]: {round(n_nonzero_rate, 4)*100}% (n={n_nonzero}) of entries has non-zero overlap ratio.\n'
+    if n_nonzero_rate < 0.01:
+        msg += f'---[WARMING]: Please check the consistency (upper/lower case) of signature names in rand_df and libraries.\n'
+        msg += f'              Current rand_df sig name: {obj.sig_names[0][0]}, library sig name: {obj.term_genes_list[0][0]}\n'
+        msg += f'              Current setting - sig_upper={obj.sig_upper}'
     print(msg)
 
 
@@ -240,7 +239,10 @@ def get_metrics_null(obj):
         obj.null_ESD[i, :] = ESD
         obj.null_peak[i, :] = peak
         RC_AUC = _get_AUC(rc_rs)  # AUC per [n_term, n_obs]
-        RC_nAUC = RC_AUC/obj.n_hits
+        RC_nAUC = np.divide(RC_AUC, obj.n_hits, 
+                           out=np.zeros_like(RC_AUC, dtype=float), 
+                           where=(obj.n_hits != 0))
+
         nRC_AUC = _get_AUC(nrc_rs)
         obj.null_RC_AUC[i, :] = RC_AUC
         obj.null_RC_nAUC[i, :] = RC_nAUC
@@ -297,7 +299,9 @@ def get_AUC(obj):
         obj.nRC_AUC: np.ndarray of shape [n_term, n_obs]
     """
     obj.RC_AUC = _get_AUC(obj.rc_rs)
-    obj.RC_nAUC = obj.RC_AUC/obj.n_hits
+    obj.RC_nAUC = np.divide(obj.RC_AUC, obj.n_hits, 
+                           out=np.zeros_like(obj.RC_AUC, dtype=float), 
+                           where=(obj.n_hits != 0))    
     obj.nRC_AUC = _get_AUC(obj.nrc_rs)
 
 def _get_AUC(rc_rs):
