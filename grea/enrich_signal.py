@@ -36,9 +36,65 @@ def get_leading_edge(obj):
         for t in range(n_term)
     ]
 
-
 def get_overlap(obj):
-    """    
+    """ This version obj.sig_names is the same for all obs
+    Args:
+        obj.sig_names: np.ndarray of shape [n_sig, n_obs], strings of sig_name separated by sig_sep
+        obj.sig_sep: separator used in sig_name
+        
+    Returns:
+        obj.term_genes_list: List[List[str]], length = n_term, each is a set of genes
+        obj.overlap_ratios: np.ndarray of shape [n_term, n_sig, n_obs]
+        obj.n_hits: np.ndarray of shape [n_term, n_obs] # number of sigs hit in the obs
+    """
+
+    obj.term_names = list(obj.term_dict.keys()) 
+    obj.term_genes_list = [obj.term_dict[t] for t in obj.term_names]  
+    # n_terms
+
+    n_sig, n_obs = obj.sig_names.shape
+    n_term = len(obj.term_genes_list)
+    overlap_ratios = np.zeros((n_term, n_sig), dtype=np.float32)
+    n_hits = np.zeros((n_term), dtype=np.int32)
+
+    j = 0 # use the first obs
+    overlap_ratio_dict = {}
+    for t, lib_genes in enumerate(obj.term_genes_list):
+        lib_genes = set(lib_genes)
+            
+        for i in range(n_sig):
+            sig_name = obj.sig_names[i, j]
+            if obj.sig_upper:
+                sig_name = sig_name.upper()
+
+            if (t, sig_name) in overlap_ratio_dict:
+                ratio = overlap_ratio_dict[(t, sig_name)]
+            else:
+                genes_in_cell = set(sig_name.split(obj.sig_sep))
+                n_overlap = len(genes_in_cell & lib_genes)
+                    
+                if len(genes_in_cell) > 0:
+                    ratio = n_overlap / len(genes_in_cell)
+                    overlap_ratio_dict[(t, sig_name)] = ratio
+            if ratio > 0:
+                overlap_ratios[t, i] = ratio
+                n_hits[t] += 1
+    # copy from first obs
+    obj.overlap_ratios = np.broadcast_to(overlap_ratios[:, :, np.newaxis], (n_term, n_sig, n_obs))
+    obj.n_hits = np.broadcast_to(n_hits[:, np.newaxis], (n_term, n_obs))
+
+    # check overlap ratio
+    n_nonzero = np.sum(obj.overlap_ratios != 0)
+    n_nonzero_rate = n_nonzero/(n_term*n_sig*n_obs)
+    msg = f'---[INFO]: {round(n_nonzero_rate, 4)*100}% (n={n_nonzero})/({n_term}*{n_sig}*{n_obs}) of entries has non-zero overlap ratio.\n'
+    if n_nonzero_rate < 0.01:
+        msg += f'---[WARMING]: Please check the consistency (upper/lower case) of signature names in rand_df and libraries.\n'
+        msg += f'              Current rand_df sig name: {obj.sig_names[0][0]}, library sig name: {obj.term_genes_list[0][0]}\n'
+        msg += f'              Current setting - sig_upper={obj.sig_upper}'
+    print(msg)
+
+def get_overlap_bk(obj):
+    """ This version obj.sig_names is different
     Args:
         obj.sig_names: np.ndarray of shape [n_sig, n_obs], strings of sig_name separated by sig_sep
         obj.sig_sep: separator used in sig_name
@@ -84,7 +140,7 @@ def get_overlap(obj):
     # check overlap ratio
     n_nonzero = np.sum(obj.overlap_ratios != 0)
     n_nonzero_rate = n_nonzero/(n_term*n_sig*n_obs)
-    msg = f'---[INFO]: {round(n_nonzero_rate, 4)*100}% (n={n_nonzero}) of entries has non-zero overlap ratio.\n'
+    msg = f'---[INFO]: {round(n_nonzero_rate, 4)*100}% (n={n_nonzero})/({n_term}*{n_sig}*{n_obs}) of entries has non-zero overlap ratio.\n'
     if n_nonzero_rate < 0.01:
         msg += f'---[WARMING]: Please check the consistency (upper/lower case) of signature names in rand_df and libraries.\n'
         msg += f'              Current rand_df sig name: {obj.sig_names[0][0]}, library sig name: {obj.term_genes_list[0][0]}\n'
