@@ -66,6 +66,8 @@ def enrich_long_df(obj, metric):
 
 def enrich_wide_df(obj, metric):
     ES, pval, lead_sigs_list = _get_metric_matrix(obj, metric)
+    if obj.use_torch:
+        ES = ES.detach().cpu().numpy()
     df = pd.DataFrame(ES, columns=obj.obs_names, index=obj.term_names)
     return df
 

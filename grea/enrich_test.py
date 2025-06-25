@@ -13,11 +13,17 @@ from mpmath import mp, mpf
 from multiprocessing import Pool
 
 
-import grea.enrich_signal as enrich_signal
+from grea import enrich_signal_np
+from grea import enrich_signal_torch
 import grea.prob as prob
 
 
 def enrich(obj):
+
+    if obj.use_torch:
+        enrich_signal = enrich_signal_torch
+    else:
+        enrich_signal = enrich_signal_np
 
     enrich_signal.get_overlap(obj) 
     enrich_signal.get_sorted(obj)

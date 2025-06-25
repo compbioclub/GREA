@@ -2,6 +2,7 @@ import numpy as np
 import random
 from tqdm import tqdm
 from copy import deepcopy
+import torch
 
 import grea.rankscore as rankscore
 import grea.enrich_test as enrich_test
@@ -36,8 +37,11 @@ class _GREA(object):
                  n_perm=1000, symmetric=False,
                  center=True, add_noise=False,
                  get_pval=True, get_lead_sigs=True,
+                 use_torch=False, # 
                  stop=None,
                  save_permutation: bool=False) -> None:
+        if use_torch:
+            print('---[WARMING]: use_torch=True is not fully tested, switch to use_torch=False.')
 
         if type(libraries) == list:
             self.term_dict = library.get_library_from_names(libraries, add_lib_key=add_lib_key, min_size=min_size, max_size=max_size)
@@ -52,6 +56,11 @@ class _GREA(object):
         np.random.seed(seed)
         self.seed = seed
         self.stop = stop
+        self.use_torch = use_torch
+        if use_torch:
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            get_lead_sigs = False
+
         if prob_method not in ['perm', None]:
             raise ValueError("prob_method '{prob_method}' must be 'perm', 'None'.")
         self.prob_method = prob_method
