@@ -68,11 +68,11 @@ markdown_extensions:
 - attr_list
 
 nav:
-  - 🏠 Home: index.md
-  - 📥 Installation: installation.md
-  - 📖 Tutorial: 
+  - Home: index.md
+  - Installation: installation.md
+  - Tutorial: 
     - Phenotype-level prerank enrichment for genes: tutorial/gene-pheno_prerank_enrich.ipynb
     - Phenotype-level prerank enrichment for gene interactions: tutorial/interaction-pheno_prerank_enrich.ipynb
     - Observation-level prerank enrichment for genes: tutorial/gene-obs_prerank_enrich.ipynb
     - Observation-level prerank enrichment for gene interactions: tutorial/interaction-obs_prerank_enrich.ipynb
-  - 📑 Reference: reference.md
+  - Reference: reference.md

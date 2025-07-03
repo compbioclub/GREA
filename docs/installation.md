@@ -9,11 +9,12 @@ Before installation, please ensure you have the following dependencies:
 - Python >= 3.12
 - Other dependencies (if applicable)
 
-## Install via pip
+## Installation
 
-You can install it directly using `pip`:
+From GitHub (recommended for the latest version)
 
 ```bash
-pip install grea
+pip install git+https://github.com/compbioclub/GREA.git@dev
 
 ```
+  
