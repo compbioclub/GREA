@@ -77,5 +77,5 @@ def print_enrich(obj, metric, t, o, **kwargs):
     if pval is not None:
         text += f"\np-val: {pval[t, o]:.3f}"
     if lead_sigs:
-        text += f"\n# of leading edge: {len(lead_sigs)}"
+        text += f"\n# of leading edge: {len(lead_sigs[t][o])}"
     return text
