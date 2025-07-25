@@ -123,6 +123,11 @@ class _GREA(object):
         self._check_term(term)
         self._check_obs(obs_id)
         return pl.running_sum(self, metric, term, obs_id, **kwargs)
+    
+    def pl_top_table(self, obs_id, n=10,  metric='KS-ES', **kwargs):
+        self._check_metric(metric)
+        self._check_obs(obs_id)
+        return pl.top_table(self, obs_id=obs_id, n=n, metric=metric,  **kwargs)
 
     def _check_n_perm(self, n_perm, symmetric):
         if n_perm is None:

@@ -152,122 +152,65 @@ def _pl_rs_rank(ax, obj, o):
     ax.tick_params(labelsize=10)
 
 
-def top_table(sig_name, sig_val, library, result, n=10, center=True, interactive_plot=False, plot_type="ES", sig_sep=','):
+def top_table(obj, obs_id, n=10, metric="KS-ES", ):
     """
-    Plot a table to enrichment results for top N enriched gene sets for a given geneset and signature.
-
-    Parameters:
-    signature (array-like): The gene expression signature to analyze.
-    library (array-like): The gene set library to use for enrichment analysis.
-    result (array-like, optional): A precomputed enrichment result. Default is None.
-    n (integer): number of top enriched gene sets to be plotted
-    
-    Returns:
-    figure: The running sum plot for the given geneset and signature.
+    Plot enrichment results for top-N gene sets for a selected sample.
     """
+    o = obj.obs_names.index(obs_id)
+    result = obj.get_enrich_results(metric=metric)
 
     if not isinstance(result.index, pd.MultiIndex):
-        result = result.set_index(['Term', 'Sample'])
+        result = result.set_index(['Term', 'Obs'])
 
-    if not interactive_plot:
-        plt.ioff()
-    sig_name = sig_name.copy()
-    sig_val = sig_val.copy().astype(float)
+    sample_result = result.xs(obs_id, level="Obs")
+    top_n = min(n, len(sample_result))
 
-    if sig_val.shape[1] != sig_name.shape[1]:
-        if sig_val.shape[1] > sig_name.shape[1]:
-            sig_name = np.repeat(sig_name[:, -1:], sig_val.shape[1], axis=1)
-   
-    n_samples = sig_val.shape[1]
-    figures = []
-    for sample_idx in range(n_samples):
-        print(f"----Start Sample {sample_idx+1}----")
+    fig = plt.figure(figsize=(7, 0.8 * top_n))
+    gs = fig.add_gridspec(top_n+1, 10, hspace=0.1, wspace=0)
+    fig.patch.set_facecolor("white")
 
-        col_sig_name = sig_name[:, sample_idx:sample_idx+1]
-        col_sig_val = sig_val[:, sample_idx:sample_idx+1]
+    custom_blues = ["#e6f0fa", "#add8e6", "#4682b4"]
+    custom_reds = ["#fde0dd", "#f76868", "#f53737"]
+    blues_cmap = mpl.colors.LinearSegmentedColormap.from_list("my_blues", custom_blues)
+    reds_cmap = mpl.colors.LinearSegmentedColormap.from_list("my_reds", custom_reds)
 
-        df = pd.DataFrame({"sig_name": col_sig_name.flatten(), "sig_val": col_sig_val.flatten()})
-        split_genes = df['sig_name'].str.split('_').explode()
+    # Score title
+    score_title_ax = fig.add_subplot(gs[0, 0:1])
+    score_title_ax.axis("off")
+    score_title_ax.text(0, 0.5, metric, fontsize=12, va='center')
+
+    # Term title
+    term_title_ax = fig.add_subplot(gs[0, 8:10])
+    term_title_ax.axis("off")
+    term_title_ax.text(0.3, 0.5, "Term", fontsize=12,  va='center', ha='center')
+    
+    for i in range(1,top_n):
+        term = sample_result.index[i]
+        score = sample_result.iloc[i][metric]
+
+        # left
+        score_ax = fig.add_subplot(gs[i, 0:1])
+        score_ax.axis("off")
+        score_ax.text(0, 0.5, f"{score:.3f}", va='center', fontsize=10)
+
+        hit_ax = fig.add_subplot(gs[i, 1:8])
+        hit_ax.set_facecolor("white")
+        cmap = reds_cmap if score > 0 else blues_cmap
+        norm = mpl.colors.Normalize(vmin=0, vmax=1)
+
+        _plt_rs_hit(hit_ax, obj, obj.term_names.index(term), o, cmap, norm)
+        hit_ax.set_xticks([])
+        hit_ax.set_yticks([])
+
+        # right
+        term_ax = fig.add_subplot(gs[i, 8:10])
+        term_ax.axis("off")
+        term_ax.text(0.3, 0.5, term, va='center', fontsize=10)
+    
+    fig.suptitle(f"Obs: {obs_id}", fontsize=15, y=0.9)
+    plt.tight_layout()
+    return fig
         
-        df_expanded = pd.DataFrame({
-            'sig_name': split_genes,
-            'sig_val': df['sig_val'].repeat(df['sig_name'].str.split('_').str.len())
-        })
-
-        sig = df_expanded.sort_values(by="sig_val", ascending=False).set_index("sig_name")
-        sig = sig[~sig.index.duplicated(keep='first')]
-
-
-        if center:
-            col_sig_val = col_sig_val - np.mean(col_sig_val)    
-
-        sample_result = result.xs(key=sample_idx, level= "Sample")
-        #print("Sample result index:", sample_result.index)
-        top_n = min(n, len(result))
-         
-        fig = plt.figure(figsize=(5,0.5*top_n), frameon=False)
-        ax = fig.add_subplot(111)
-        fig.patch.set_visible(False)
-        plt.axis('off')
-
-        ax.vlines(x=[0.2,0.8], ymin=-0.1, ymax=1, color="black")
-        ln = np.linspace(-0.1,1,top_n+1)[::-1]
-        ax.hlines(y=ln, xmin=0, xmax=1, color="black")
-
-        ax.text(0.03, 1.03, "AUC", fontsize=16)
-        
-
-        ax.text(0.84, 1.03, "SET", fontsize=16)
-
-        
-        for i in range(top_n):
-            if plot_type == 'ES':
-                value = sample_result.iloc[i]["nes"] 
-            elif plot_type == 'ESD':
-                value = sample_result.iloc[i]["nesd"]
-            elif plot_type == 'AUC':
-                value = sample_result.iloc[i]["AUC"]
-            elif plot_type == 'nAUC':
-                value = sample_result.iloc[i]["nAUC"]
-        
-            ax.text(0.03, (ln[i]+ln[i+1])/2, "{:.3f}".format(value), verticalalignment='center')
-            ax.text(0.84, (ln[i]+ln[i+1])/2, sample_result.index[i], verticalalignment='center')
-
-            term_name = sample_result.index[i]
-
-            gs = set(library[term_name])
-            print(f"Number of genes in gene set: {len(gs)}")
-
-            common_genes = [x for x in sig.index if x in gs]
-            print(f"Number of overlapping genes: {len(common_genes)}")
-            
-
-            hits = np.array([i for i,x in enumerate(sig.index) if x in gs])
-            hits = (hits/len(sig.index))*0.6+0.2
-            print(f"Hit positions: {hits}")
-
-            if plot_type == 'ES':    
-                if sample_result.iloc[i]["nes"] > 0:
-                    ax.vlines(hits, ymax=ln[i], ymin=ln[i+1], color="red", lw=0.5, alpha=0.3)
-                else:
-                    ax.vlines(hits, ymax=ln[i], ymin=ln[i+1], color="blue", lw=0.5, alpha=0.3)
-            elif plot_type == 'ESD':
-                if sample_result.iloc[i]["nesd"] > 0:
-                    ax.vlines(hits, ymax=ln[i], ymin=ln[i+1], color="red", lw=0.5, alpha=0.3)    
-                else:
-                    ax.vlines(hits, ymax=ln[i], ymin=ln[i+1], color="blue", lw=0.5, alpha=0.3)
-            elif plot_type == 'AUC':
-                if sample_result.iloc[i]["AUC"] > 0:
-                    ax.vlines(hits, ymax=ln[i], ymin=ln[i+1], color="red", lw=0.5, alpha=0.3)    
-                else:
-                    ax.vlines(hits, ymax=ln[i], ymin=ln[i+1], color="blue", lw=0.5, alpha=0.3)
-        ax.set_title(f"Sample {sample_idx + 1}", fontsize=14)
-        fig.patch.set_facecolor('white')
-        figures.append(fig)
-    if n_samples == 1:
-        return figures[0]
-    else:
-        return figures
 
         
 def plot_box(ax, data, ranks, color, label, min_p_value_line=None, line_label=None):
