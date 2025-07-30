@@ -14,10 +14,11 @@ def get_library_from_names(
         libraries, add_lib_key=True,
         min_size=None, max_size=None):
     mylibs = list_libraries()
-    mylibs += ['KO_PATHWAY_KO_TERM']  
-    mylibs += ['Mouse.MitoCarta3.0'] 
+    mylibs += ['KO_PATHWAY_KO_TERM']
+    mylibs += ['Mouse.MitoCarta3.0']
     mylibs += ['c5.go.bp.v2025.1.Hs', 'c5.go.cc.v2025.1.Hs', 'c5.go.mf.v2025.1.Hs']
     mylibs += ['m5.go.bp.v2025.1.Mm', 'm5.go.cc.v2025.1.Mm', 'm5.go.mf.v2025.1.Mm']
+    mylibs += ['c2.cp.kegg_medicus.v2025.1.Hs']
 
     term_dict = {}
     for key in libraries:
@@ -56,7 +57,7 @@ def get_library(library: str):
         return get_ko_library()
     elif library == 'Mouse.MitoCarta3.0':
         return get_mt_library()
-    elif library.startswith('c5') or library.startswith('m5'):
+    elif library.startswith('c5') or library.startswith('m5') or library.startswith('c2'):
         wdr = os.path.dirname(os.path.abspath(__file__))
         return read_gmt(f'{wdr}/db/{library}.symbols.gmt')
     else:
