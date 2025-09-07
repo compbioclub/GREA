@@ -12,14 +12,8 @@ The schematic overview of GREA
 pip install git+https://github.com/compbioclub/GREA.git@dev
 ```
 
-
-
 ## 🚀 Quick Start
 
-### 1️⃣ Running the GREA Pipeline
+Want to start using it immediately? Check out the [Tutorial Guide](https://compbioclub.github.io/GREA/).
 
-The following is an example of how to use GREA in a complete workflow:
 
-```python
-from grea import GREA
-```
