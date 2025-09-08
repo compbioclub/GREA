@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "GREA"
+version = "0.1.0"
+description = "Gene Interaction Enrichment Analysis package"
+authors = [
+    { name = "compbioclub", email = "compbioclub@compbio.club" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "bioservices>=1.10.4",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "torch>=2.0.0",
+    "scipy>=1.10.0",
+]
+
+[tool.setuptools]
+packages = ["grea", "grea.db"]
+
+[tool.setuptools.package-data]
+"grea.db" = ["*"]
+
+[tool.setuptools.include-package-data]
+include-package-data = true
