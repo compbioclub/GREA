@@ -12,4 +12,5 @@ site/
 *html
 *png
 .DS_Store
+!grea/db/config.json
 *json
