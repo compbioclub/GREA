@@ -4,11 +4,8 @@ import scanpy as sc
 import anndata as ad
 from scipy.sparse import csr_matrix, coo_matrix
 from pyseat.SEAT import SEAT
-import pickle
 import os
-import pickle
 from itertools import permutations
-import pymannkendall as mk
 import warnings
 warnings.filterwarnings('ignore')
 from tqdm import tqdm
@@ -45,6 +42,8 @@ class FREA():
     def preprocess_adata(self, adata, n_hvg=5000, random_state=0, n_pcs=30, n_neighbors=10):
         #sc.pp.scale(adata)
         sc.pp.highly_variable_genes(adata, n_top_genes=n_hvg, flavor='cell_ranger')
+        if n_pcs > adata.shape[0]:
+            return
         sc.tl.pca(adata)
         sc.pp.neighbors(adata, n_pcs=n_pcs, n_neighbors=n_neighbors)
         sc.tl.umap(adata, random_state=random_state)
@@ -127,7 +126,7 @@ class FREA():
             if group == 'all':
                 group_mask = np.ones(n_obs)
             else:
-                group_mask = (adata.obs['symptom'] == group).astype(int).to_numpy()
+                group_mask = (adata.obs[groupby] == group).astype(int).to_numpy()
             tree = self.seat_dict[group].se_tree
             lca_list = []
             for u, v in zip(idata.var['var1_i'],idata.var['var2_i']):
