@@ -51,7 +51,7 @@ class FREA():
     def build_hierarchy(self, groupby=None, n_neighbors=10, n_top=1000,
                         strategy='top_down',
                         layer='log1p'):
-
+ 
         if groupby is None:
             groups = 'all'
         else:
@@ -70,7 +70,8 @@ class FREA():
                         objective="SE",
                         n_neighbors=n_neighbors,
                         strategy=strategy,
-                        verbose=False)                
+                        verbose=False)
+            print(X.shape)
             seat.fit_predict(X)   
             knn_m += self.get_top_n_matrix(seat.aff_m, n_top)
             self.seat_dict[group] = seat
@@ -159,7 +160,6 @@ class FREA():
             entropy_m += np.array(res).T
         self.vol_dict = vol_dict
         idata.layers[f'entropy'] = entropy_m
-        idata.layers[f'entropy_prod'] = entropy_m * idata.layers[f'prod']
 
     def test_DER(self, groupby, target_group=None, 
                  test_method="wilcoxon", method='prod'):
