@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import anndata as ad
-from scipy.sparse import csr_matrix, issparse
+from scipy.sparse import csr_matrix, coo_matrix, issparse
 from pyseat.SEAT import SEAT
 import os
 from itertools import permutations
@@ -19,15 +19,15 @@ from grea.grea import pheno_prerank_enrich
 
 class FREA():
 
-    def __init__(self, adata, bg_net=None, bg_net_score_cutoff=850,
+    def __init__(self, adata, 
                  n_threads=1,
-                 n_hvg=1000,n_pcs=30,
+                 n_hvg=1000,
                  dataset='test',
                  out_dir='./out'
                  ):
 
         adata = adata.copy()
-        self.preprocess_adata(adata, n_hvg=n_hvg, n_pcs=n_pcs)
+        self.preprocess_adata(adata, n_hvg=n_hvg)
         adata = adata[:, adata.var['highly_variable']]
         adata.obs['i'] = range(adata.shape[0])
         adata.var['i'] = range(adata.shape[1])
