@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import anndata as ad
-from scipy.sparse import csr_matrix, coo_matrix
+from scipy.sparse import csr_matrix, issparse
 from pyseat.SEAT import SEAT
 import os
 from itertools import permutations
@@ -39,14 +39,30 @@ class FREA():
             os.makedirs(out_dir)
         self.out_dir = out_dir
 
-    def preprocess_adata(self, adata, n_hvg=5000, random_state=0, n_pcs=30, n_neighbors=10):
-        #sc.pp.scale(adata)
-        sc.pp.highly_variable_genes(adata, n_top_genes=n_hvg, flavor='cell_ranger')
-        if n_pcs > adata.shape[0]:
-            return
-        sc.tl.pca(adata)
-        sc.pp.neighbors(adata, n_pcs=n_pcs, n_neighbors=n_neighbors)
-        sc.tl.umap(adata, random_state=random_state)
+    def preprocess_adata(self, adata, n_hvg=5000, flavor='cell_ranger', layer='log1p'):
+        try:
+            # cell ranger for log-normalized
+            # seurat_v3 for raw count
+            print('using flavor=cell_ranger to detect HVG')
+            sc.pp.highly_variable_genes(adata, n_top_genes=n_hvg, flavor=flavor)
+        except Exception:
+            print('HVG flavors failed; selecting top genes by standard deviation')
+            X = adata.layers[layer]
+            # std per gene (handle sparse vs dense)
+            if issparse(X):
+                mean = np.asarray(X.mean(axis=0)).ravel()
+                mean_sq = np.asarray(X.multiply(X).mean(axis=0)).ravel()
+                var = mean_sq - mean**2
+                std = np.sqrt(np.clip(var, 0, None))
+            else:
+                std = np.std(np.asarray(X), axis=0)
+
+            top_idx = np.argsort(std)[::-1][:n_hvg]
+            hvg_mask = np.zeros(adata.n_vars, dtype=bool)
+            hvg_mask[top_idx] = True
+
+            adata.var['highly_variable'] = hvg_mask
+            adata.var['highly_variable_std'] = std
 
     def build_hierarchy(self, groupby=None, n_neighbors=10, n_top=1000,
                         strategy='top_down',
@@ -116,10 +132,9 @@ class FREA():
 
         # entropy
         if groupby is None:
-            groups = 'all'
+            groups = ['all']
         else:
             groups = adata.obs[groupby].unique()
-            group_df = adata.obs[groupby]
 
         vol_dict = {}
         entropy_m = np.zeros(idata.shape)
